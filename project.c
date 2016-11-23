@@ -346,6 +346,7 @@ void insert_data(char a_i[30],int inode){
 
 }
 
+// ok
 void mymkdir(char a_i[30]){
 	int inode,data;
 	char tmp[3];
@@ -413,6 +414,7 @@ void mymkdir(char a_i[30]){
 
 }
 
+// 옵션 추가
 void myls(char a_i[30]){
 	int s=0,k=0;
 	char tmp[4];
@@ -451,7 +453,7 @@ void myls(char a_i[30]){
 	}
 }
 
-//수정 필요
+// ok
 void mycd(char a_i[30]){
 	int s=0,k,ck=999,n=0;
 	char tmp[5],tmp2[40];
@@ -530,6 +532,7 @@ void mycd(char a_i[30]){
 
 }
 
+// ok
 void myrmdir(char a_i[30]){
 	int s=0,k,ck=999,n=0,l,m=0,id,dd;
 	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
