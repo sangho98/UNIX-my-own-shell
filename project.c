@@ -1,23 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <math.h>
 
-union block{
-	struct d_block{
-		char data[128];
-	}dblock;
-
-	struct sid_block{
-		struct d_block *dtb[16];
-		struct sid_block *next;
-	}sidblock;
-
-	struct did_block{
-		struct sid_block *sidtb[16];
-		struct did_block *next;
-	}didblock;
-};
+struct d_block{
+	int num; // 데이터블록 번호
+	int type; // 0 다이렉트 1 싱글 2 더블
+	char data[128];
+}dblock;
 
 struct inode{
 	int file_type;
@@ -27,8 +18,6 @@ struct inode{
 	int sin;
 	int dou;
 	struct d_block *db;
-	struct sid_block *sid;
-	struct did_block *did;
 };
 
 struct s_block{
@@ -39,7 +28,7 @@ struct my_file_system{
 	unsigned b_block : 16;
 	struct s_block super[16];
 	struct inode inode[512];
-	union block *block[1024];
+	struct d_block *block[1024];
 };
 
 struct dtree{
@@ -56,14 +45,19 @@ void i_bit_insert();
 void d_bit_insert();
 void i_bit_del(int);
 void d_bit_del(int);
+void cal_date(int);
 void insert_data(char [],int);
 void mymkdir(char []);
 void mycd(char []);
 void myls(char []);
 void myrmdir(char []);
 void mytree(struct dtree *,int);
+void myshowinode(char []);
+void myshowblock(char []);
+void mystate();
 
 struct my_file_system *mfs;
+
 struct dtree *D=NULL;
 struct dtree *cur = NULL;
 struct dtree *back = NULL;
@@ -92,26 +86,24 @@ int main() {
 				mfs->inode[i].file_type = 2;
 			}
 			for(int i=0;i<1024;i++){
-				mfs->block[i] = malloc(sizeof(union block));
+				mfs->block[i] = malloc(sizeof(struct d_block));
 				for(int j=0;j<128;j++)
-					mfs->block[i]->dblock.data[j] = '\0';
+					mfs->block[i]->data[j] = '\0';
 			}
 
-			mfs->block[0] = malloc(sizeof(union block));
+			mfs->block[0] = malloc(sizeof(struct d_block));
 
-			mfs->inode[0].db = &mfs->block[0]->dblock; // inode 0 의 다이렉트 포인터가 데이터블록 0번을 가리킴
+			mfs->inode[0].db = mfs->block[0]; // inode 0 의 다이렉트 포인터가 데이터블록 0번을 가리킴
 			mfs->inode[0].dir = 0;
 
 			for(int i=0;i<128;i++)
-				mfs->block[0]->dblock.data[i] = '\0';
+				mfs->block[0]->data[i] = '\0';
 			
-			sprintf(mfs->block[0]->dblock.data,"%-3d%-4s%-3d%-4s",0,".",0,"..");
+			sprintf(mfs->block[0]->data,"%-3d%-4s%-3d%-4s",0,".",0,"..");
 			// 512abcd -> 512번 아이노드 abcd 폴더명 or 파일명
 
 			mfs->inode[0].file_type = 1; // 파일 타입 저장 = '1' (폴더 = 1, 파일 = 0)
-
-			// mfs->inode[0].file_date = date(); // 파일 날짜 저장
-
+			cal_date(0);
 			mfs->inode[0].file_size = 0; // 사이즈0 저장
 
 			
@@ -164,6 +156,7 @@ void prompt(char i[30], char a_i[20]){
 }
 
 void command(char i[30], char a_i[30]){
+	char name[5];
 
 	if(!strcmp(i,"byebye")){
 		exit(1);
@@ -171,7 +164,8 @@ void command(char i[30], char a_i[30]){
 
 	if(!strcmp(i,"mymkdir")){
 		if(a_i[0] != '\0'){
-			mymkdir(a_i);
+			sprintf(name,"%c%c%c%c",a_i[0],a_i[1],a_i[2],a_i[3]);
+			mymkdir(name);
 		}else{
 			printf("폴더명을 입력 해주세요.\n");
 		}
@@ -200,6 +194,23 @@ void command(char i[30], char a_i[30]){
 
 	if(!strcmp(i,"myrmdir")){
 		myrmdir(a_i);
+	}
+
+	if(!strcmp(i,"myshowinode")){
+		myshowinode(a_i);
+	}
+
+	if(!strcmp(i,"myshowblock")){
+		myshowblock(a_i);
+	}
+
+	if(!strcmp(i,"mystate")){
+		mystate();
+	}
+
+	if( !(i[0] == 'm' && i[1] == 'y') ){
+		sprintf(i,"%s %s",i,a_i);
+		system(i);
 	}
 		
 
@@ -310,10 +321,6 @@ void i_bit_del(int id){
 
 	mfs->inode[id].db = NULL;
 
-	mfs->inode[id].sid = NULL;
-
-	mfs->inode[id].did = NULL;
-
 }
 
 void d_bit_del(int id){
@@ -331,23 +338,31 @@ void d_bit_del(int id){
 
 }
 
-void insert_data(char a_i[30],int inode){
+void cal_date(int inode){
+	struct tm *t;
+	time_t timer; // 시간 측정
+
+	timer = time(NULL); // 현재 시각을 초 단위로 얻기
+	t = localtime(&timer); // 초 단위의 시간을 분리하여 구조체에 넣기
+
+	sprintf(mfs->inode[inode].file_date,"%04d/%02d/%02d %02d:%02d:%02d",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+
+}
+
+void insert_data(char name[5],int inode){
 	char tmp[128],tmp2[128];
 
-	if(cur->p->db->data[0] >= '1' && cur->p->db->data[0] <= '9'){
-	}else{
 	sprintf(tmp,"%-7s",cur->p->db->data);
-	}
 
-	sprintf(cur->p->db->data,"%-3d%-4s",inode,a_i);
+	sprintf(cur->p->db->data,"%-3d%-4s",inode,name);
 	strcat(tmp,cur->p->db->data);
 
-	sprintf(cur->p->db->data,"%-7s",tmp);
+	sprintf(cur->p->db->data,"%-7s\0",tmp);
 
 }
 
 // ok
-void mymkdir(char a_i[30]){
+void mymkdir(char name[5]){
 	int inode,data;
 	char tmp[3];
 
@@ -362,24 +377,24 @@ void mymkdir(char a_i[30]){
 		new->right = NULL;
 
 		mfs->inode[inode].file_type = 1;
-		//mfs->inode[inode].file_date = cal_date;
+		cal_date(inode);
 		mfs->inode[inode].file_size = 0;
 		mfs->inode[inode].dir = data;
 
 		mfs->block[data] = malloc(sizeof(struct d_block));
-		mfs->inode[inode].db = &mfs->block[data]->dblock;
+		mfs->inode[inode].db = mfs->block[data];
 
 		for(int i=0;i<128;i++)
-			mfs->block[data]->dblock.data[i] = '\0';
+			mfs->block[data]->data[i] = '\0';
 
-		sprintf(mfs->block[data]->dblock.data,"%-3d%-4s%-3d%-4s",inode,".",0,"..");
+		sprintf(mfs->block[data]->data,"%-3d%-4s%-3d%-4s",inode,".",0,"..");
 
 		cur->left = new;
 
 		i_bit_insert();
 		d_bit_insert();
 
-		insert_data(a_i,inode);
+		insert_data(name,inode);
 
 	}else{
 		struct dtree *new = malloc(sizeof(struct dtree));
@@ -393,34 +408,192 @@ void mymkdir(char a_i[30]){
 		new->right = NULL;
 
 		mfs->inode[inode].file_type = 1;
-		//mfs->inode[inode].file_date = cal_date;
+		cal_date(inode);
 		mfs->inode[inode].file_size = 0;
 		mfs->inode[inode].dir = data;
+
 		mfs->block[data] = malloc(sizeof(struct d_block));
-		mfs->inode[inode].db = &mfs->block[data]->dblock;
+		mfs->inode[inode].db = mfs->block[data];
 
 		for(int i=0;i<128;i++)
-			mfs->block[data]->dblock.data[i] = '\0';
+			mfs->block[data]->data[i] = '\0';
 
-		sprintf(mfs->block[data]->dblock.data,"%-3d%-4s%-3d%-4s",inode,".",0,"..");
+		sprintf(mfs->block[data]->data,"%-3d%-4s%-3d%-4s",inode,".",0,"..");
 
 		temp->right = new;
 
 		i_bit_insert();
 		d_bit_insert();
 
-		insert_data(a_i,inode);
+		insert_data(name,inode);
 	}
 
 }
 
 // 옵션 추가
 void myls(char a_i[30]){
-	int s=0,k=0;
-	char tmp[4];
+	int s=0,k=0,inode;
+	char tmp[5],tmp1[4],type[2];
 	struct dtree *p = cur->left;
 
-	printf("%s\n",cur->p->db->data);
+	if(!strcmp(a_i,"-i")){
+		while(s<13){
+			k=0;
+			for(int i=s;i<s+3;i++){
+				tmp1[k] = cur->p->db->data[i];
+				k++;
+			}
+			k=0;
+			for(int j=s+3;j<s+7;j++){
+				tmp[k] = cur->p->db->data[j]; 
+				k++;
+			}
+			inode = atoi(tmp1);
+			printf("%d %s\n",inode,tmp);
+			s+= 7;
+		}
+
+		if(cur->left !=NULL){
+			while(1){
+				k=0;
+				for(int i=s;i<s+3;i++){
+					tmp1[k] = cur->p->db->data[i];
+					k++;
+				}
+				k=0;
+				for(int j=s+3;j<s+7;j++){
+					tmp[k] = cur->p->db->data[j]; 
+					k++;
+				}
+				inode = atoi(tmp1);
+				printf("%d %s\n",inode,tmp);
+				if(p->right==NULL)
+					break;
+				s+= 7;
+				p = p->right;
+			}
+		}else{
+			return;
+		}
+
+		return;
+	}
+
+	if(!strcmp(a_i,"-l")){
+		while(s<13){
+			k=0;
+			for(int i=s;i<s+3;i++){
+				tmp1[k] = cur->p->db->data[i];
+				k++;
+			}
+			k=0;
+			for(int j=s+3;j<s+7;j++){
+				tmp[k] = cur->p->db->data[j]; 
+				k++;
+			}
+			inode = atoi(tmp1);
+			if(mfs->inode[inode].file_type == 1){
+				sprintf(type,"%s","d");
+			}else if(mfs->inode[inode].file_type == 0){
+				sprintf(type,"%s","-");
+			}
+			
+			printf("%s %d %s %s\n",type,mfs->inode[inode].file_size,mfs->inode[inode].file_date,tmp);
+
+			s+= 7;
+		}
+
+		if(cur->left !=NULL){
+			while(1){
+				k=0;
+				for(int i=s;i<s+3;i++){
+					tmp1[k] = cur->p->db->data[i];
+					k++;
+				}
+				k=0;
+				for(int j=s+3;j<s+7;j++){
+					tmp[k] = cur->p->db->data[j]; 
+					k++;
+				}
+				inode = atoi(tmp1);
+
+				if(mfs->inode[inode].file_type == 1){
+					sprintf(type,"%s","d");
+				}else if(mfs->inode[inode].file_type == 0){
+					sprintf(type,"%s","-");
+				}
+				
+				printf("%s %d %s %s\n",type,mfs->inode[inode].file_size,mfs->inode[inode].file_date,tmp);
+				if(p->right==NULL)
+					break;
+				s+= 7;
+				p = p->right;
+			}
+		}else{
+			return;
+		}
+
+		return;
+	}
+
+	if( (!strcmp(a_i,"-li")) || (!strcmp(a_i,"-il")) ){
+
+		while(s<13){
+			k=0;
+			for(int i=s;i<s+3;i++){
+				tmp1[k] = cur->p->db->data[i];
+				k++;
+			}
+			k=0;
+			for(int j=s+3;j<s+7;j++){
+				tmp[k] = cur->p->db->data[j]; 
+				k++;
+			}
+			inode = atoi(tmp1);
+			if(mfs->inode[inode].file_type == 1){
+				sprintf(type,"%s","d");
+			}else if(mfs->inode[inode].file_type == 0){
+				sprintf(type,"%s","-");
+			}
+			
+			printf("%d %s %d %s %s\n",inode,type,mfs->inode[inode].file_size,mfs->inode[inode].file_date,tmp);
+
+			s+= 7;
+		}
+
+		if(cur->left !=NULL){
+			while(1){
+				k=0;
+				for(int i=s;i<s+3;i++){
+					tmp1[k] = cur->p->db->data[i];
+					k++;
+				}
+				k=0;
+				for(int j=s+3;j<s+7;j++){
+					tmp[k] = cur->p->db->data[j]; 
+					k++;
+				}
+				inode = atoi(tmp1);
+
+				if(mfs->inode[inode].file_type == 1){
+					sprintf(type,"%s","d");
+				}else if(mfs->inode[inode].file_type == 0){
+					sprintf(type,"%s","-");
+				}
+				
+				printf("%d %s %d %s %s\n",inode,type,mfs->inode[inode].file_size,mfs->inode[inode].file_date,tmp);
+				if(p->right==NULL)
+					break;
+				s+= 7;
+				p = p->right;
+			}
+		}else{
+			return;
+		}
+
+		return;
+	}
+
 	while(s<13){
 		k=0;
 		for(int i=s;i<s+3;i++){
@@ -429,7 +602,7 @@ void myls(char a_i[30]){
 			tmp[k] = cur->p->db->data[j]; 
 			k++;
 		}
-		printf(":%s ",tmp);
+		printf("%s ",tmp);
 		s+= 7;
 	}
 
@@ -442,7 +615,7 @@ void myls(char a_i[30]){
 				tmp[k] = cur->p->db->data[j]; 
 				k++;
 			}
-			printf(":%s ",tmp);
+			printf("%s ",tmp);
 			if(p->right==NULL)
 				break;
 			s+= 7;
@@ -523,7 +696,6 @@ void mycd(char a_i[30]){
 		}else{
 			sprintf(path,"%s/%s",tmp2,a_i);
 		}
-
 
 		
 	}
@@ -659,5 +831,74 @@ void mytree(struct dtree *D,int d){
 		mytree(D->left,d+1);
 	if(D->right!=NULL)
 		mytree(D->right,d);
+
+}
+
+void myshowinode(char a_i[30]){
+	int num;
+
+	num = atoi(a_i);
+	
+	if(mfs->inode[num].file_type == 1)
+		printf("file type : directory file\n");
+	else
+		printf("file type : regular file\n");
+	printf("file size : %d byte\n", mfs->inode[num].file_size);
+	printf("modified time : %s\n",mfs->inode[num].file_date);
+	printf("data block list : %d, %d, %d\n", mfs->inode[num].dir, mfs->inode[num].sin, mfs->inode[num].dou);
+
+}
+
+void myshowblock(char a_i[30]){
+	int num;
+
+	num = atoi(a_i);
+
+	printf("%s\n",mfs->block[num]->data);
+
+}
+
+void mystate(){
+	unsigned mask = 1;
+	int ivalue=0;
+
+	for(int i=0;i<16;i++){
+		mask = 1;
+		mask <<= 31; // mask 1로 초기화
+		for(int j=0;j<32;j++){
+			// 비트열 확인
+			if((mfs->super[i].imask & mask) == 0){
+				ivalue++;
+			}else{
+				mask >>=1;
+			}
+		}
+	}
+
+	unsigned mask1 = 1,mask2 = 1;
+	int dvalue = 0;
+
+	for(int i=0;i<16;i++){
+		mask1 = 1, mask2 = 1;
+		mask1 <<= 31, mask2 <<=31;
+		for(int j=0;j<64;j++){
+			// 비트열 확인
+			if((mfs->super[i].dmask1 & mask1) == 0 && j<32){
+				dvalue++;
+			}else if(j<32){
+				mask1 >>=1;
+			}
+
+			if((mfs->super[i].dmask2 & mask2) == 0 && j>31){
+				dvalue++; 
+			}else if(j>31){
+				mask2 >>=1;
+			}
+		}
+
+	}
+
+	printf("free inode : %d\n",ivalue);
+	printf("free data block : %d\n",dvalue);
 
 }
