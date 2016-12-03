@@ -21,7 +21,6 @@ struct inode{
 	struct d_block *db;
 	struct d_block *sidb;
 	struct d_block *didb;
-	struct btree *T;
 };
 
 struct s_block{
@@ -41,12 +40,6 @@ struct dtree{
 	struct dtree *right;
 };
 
-struct btree{
-	struct d_block *b;
-	struct btree *left;
-	struct btree *right;
-};
-
 void prompt(char [], char [],char []);
 void command(char [], char [],char []);
 int i_bit_check();
@@ -57,10 +50,14 @@ void i_bit_del(int);
 void d_bit_del(int);
 void cal_date(int);
 int cal_size(char []);
-void make_sid(int);
-void make_did(int);
 void set_sidbit(char [],int);
 unsigned* get_sidbit(int);
+void make_sid(int);
+void set_didbit(char [],int);
+unsigned* get_didbit(int);
+void set_dsidbit(char [],int);
+unsigned* get_dsidbit(int);
+void make_did(int);
 void in_data(char [],int);
 void sin_data(char [],int,int);
 void in_dir(char [],int);
@@ -80,8 +77,6 @@ struct my_file_system *mfs;
 struct dtree *D=NULL;
 struct dtree *cur = NULL;
 struct dtree *back = NULL;
-struct btree *B=NULL;
-struct btree *C=NULL;
 
 char path[30]= {'\0'};
 char backup[30]= {'\0'};
@@ -106,6 +101,11 @@ int main() {
 			for(int i=0;i<512;i++){
 				mfs->inode[i].file_type = 2;
 			}
+			for(int i=0;i<16;i++){
+				mfs->super[i].imask = 0;
+				mfs->super[i].dmask2 = 0;
+				mfs->super[i].dmask1 = 0;
+			}
 
 			mfs->block[0] = malloc(sizeof(struct d_block));
 			mfs->inode[0].db = mfs->block[0];
@@ -114,13 +114,6 @@ int main() {
 			mfs->inode[0].dou = 0;
 
 			/* 데이터 블록 트리 구조 */
-
-			B = malloc(sizeof(struct btree));
-			B->b = mfs->block[0];
-			B->left = NULL;
-			B->right = NULL;
-
-			C = B;
 
 			for(int i=0;i<128;i++)
 				mfs->block[0]->data[i] = '\0';
@@ -158,7 +151,6 @@ int main() {
 
 		prompt(i,a_i,a_i2);
 
-
 	}
 
 
@@ -168,6 +160,7 @@ void prompt(char i[30], char a_i[20],char a_i2[20]){
 	int tmp;
 
 	printf("\n[ %s ]$ ",path);
+
 
 	scanf("%s",i);
 
@@ -258,7 +251,7 @@ void command(char i[30], char a_i[30],char a_i2[20]){
 	}
 
 	if( !(i[0] == 'm' && i[1] == 'y') ){
-		sprintf(i,"%s %s",i,a_i);
+		sprintf(i,"%s %s %s",i,a_i,a_i2);
 		system(i);
 	}
 
@@ -424,8 +417,6 @@ void set_sidbit(char a_i[20],int inode){
 		loopQ = 102;
 	}
 
-	printf("loopQ = %d\n",loopQ);
-
 	mfs->inode[inode].num = loopQ;
 
 	for(int i=0;i<128;i++){
@@ -438,7 +429,9 @@ void set_sidbit(char a_i[20],int inode){
 			return;
 
 		in = d_bit_check();
+
 		mfs->block[in] = malloc(sizeof(struct d_block));
+
 		d_bit_insert();
 
 		if(i%4 == 0){
@@ -477,15 +470,10 @@ void set_sidbit(char a_i[20],int inode){
 			k++;
 		}
 
-		printf("%d번 데이터 블록 할당 완료 , m = %d\n",in,m);
-
 		i++;
 		m++;
 
 	}
-
-	for(int i=0;i<128;i++)
-		printf("data[%d] = %u\n",i,mfs->inode[inode].sidb->data[i]);
 
 }
 
@@ -497,7 +485,7 @@ unsigned *get_sidbit(int inode){
 	data = mfs->inode[inode].sin;
 
 	unsigned *tmp;
-	tmp = (int *)malloc( (loopQ) * sizeof(int));
+	tmp = (unsigned *)malloc( (loopQ) * sizeof(unsigned));
 
 	while(i<loopQ){
 
@@ -557,13 +545,10 @@ void make_sid(int inode){
 
 	data = d_bit_check();
 
-	printf("data = %d\n",data);
-
 	mfs->block[data] = malloc(sizeof(struct d_block));
 
 	mfs->inode[inode].sidb = mfs->block[data];
 	mfs->inode[inode].sin = data;
-
 
 	for(int i=0;i<128;i++)
 		mfs->inode[inode].sidb->data[i] = '\0'; 
@@ -571,14 +556,366 @@ void make_sid(int inode){
 	d_bit_insert();
 }
 
+void set_didbit(char a_i[20],int inode){
+	unsigned in,n,a;
+	int i=0,k=0,m=0,size,loopQ,loopP;
+
+	size = cal_size(a_i);
+	loopQ = ( (size-(13184)) / 13056 );
+	loopP = size % 13056;
+
+	if(loopP != 0)
+		loopQ += 1;
+
+	if(loopQ > 102){
+		loopQ = 102;
+	}
+
+	mfs->inode[inode].num = loopQ;
+
+	for(int i=0;i<128;i++){
+		mfs->inode[inode].didb->data[i] = 0;
+	}
+
+	while(m<loopQ){
+
+		if(m == 102)
+			return;
+
+		in = d_bit_check();
+
+		mfs->block[in] = malloc(sizeof(struct d_block));
+
+		d_bit_insert();
+
+		if(i%4 == 0){
+			n = in >> 2;
+			mfs->inode[inode].didb->data[k++] = n;
+			a = in;
+			a = a & 0x3;
+			a = a << 6;
+			mfs->inode[inode].didb->data[k] = a;
+		}
+
+		if(i%4 == 1){
+			n = in >> 4;
+			mfs->inode[inode].didb->data[k++] |= n;
+			a = in;
+			a = a & 0xF;
+			a = a << 4;
+			mfs->inode[inode].didb->data[k] = a;
+		}
+
+		if(i%4 == 2){
+			n = in >> 6;
+			mfs->inode[inode].didb->data[k++] |= n;
+			a = in;
+			a = a & 0x3F;
+			a = a << 2;
+			mfs->inode[inode].didb->data[k] = a;
+		}
+
+		if(i%4 ==3){
+			n = in >> 8;
+			mfs->inode[inode].didb->data[k++] |= n;
+			a = in;
+			a = a & 0xFF;
+			mfs->inode[inode].didb->data[k] = a;
+			k++;
+		}
+
+		i++;
+		m++;
+
+	}
+
+}
+
+unsigned *get_didbit(int inode){
+	unsigned c,n;
+	int loopQ,k=0,data,i=0,a=1;
+
+	loopQ = mfs->inode[inode].num;
+	data = mfs->inode[inode].dou;
+
+	unsigned *tmp;
+	tmp = (unsigned *) malloc((loopQ) * sizeof(unsigned));
+
+	while(i<loopQ){
+
+		if(i == 102)
+			return tmp;
+
+
+		if(i%4 == 0){
+			c = mfs->block[data]->data[k++];
+			c = c << 2;
+			c = c & 0x3FF;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 6; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 1){
+			c = mfs->block[data]->data[k++];
+			c = c << 4;
+			c = c & 0x3F0;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 4; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 2){
+			c = mfs->block[data]->data[k++];
+			c = c << 6;
+			c = c & 0x3C0;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 2; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 3){
+			c = mfs->block[data]->data[k++];
+			c = c << 8;
+			c = c & 0x300;
+			n = mfs->block[data]->data[k]; 
+			c += n;
+			tmp[k-(a++)] = c;
+			k++;
+		}
+		i++;
+
+	}
+
+	return tmp;
+
+}
+
+void set_dsidbit(char a_i[20],int inode){
+	unsigned in,n,a;
+	int i=0,k=0,m=0,z=0,p=0,size,loopQ,loopP,loopM;
+	int data;
+
+	size = cal_size(a_i);
+	loopQ = mfs->inode[inode].num;
+
+	unsigned *tmp;
+	tmp = (unsigned *) malloc(sizeof( (loopQ) * sizeof(unsigned) ));
+
+	tmp = get_didbit(inode);
+	
+	if(loopQ > 102){
+		loopQ = 102;
+	}
+
+	printf("loopQ = %d\n",loopQ);
+
+	while(m<loopQ){
+		i=0;
+
+		data = tmp[m];
+
+		/*
+		if( (m+1) == loopQ ){
+			loopP = ((size-13184) - (13056 * m)) / 128 ;
+			loopM = ((size-13184) - (13056 * m)) % 128 ;
+
+			if(loopM != 0)
+				loopP += 1;
+
+			i=0;
+			// loopP 만큼 할당해준다
+			for(int p=0;p<loopP;p++){
+
+				in = d_bit_check();
+
+				mfs->block[in] = malloc(sizeof(struct d_block));
+				for(int i=0;i<128;i++){
+					mfs->block[in]->data[i] &= 0;
+				}
+
+				d_bit_insert();
+
+				if(i%4 == 0){
+					n = in >> 2;
+					mfs->block[data]->data[k++] = n;
+					a = in;
+					a = a & 0x3;
+					a = a << 6;
+					mfs->block[data]->data[k] = a;
+				}
+
+				if(i%4 == 1){
+					n = in >> 4;
+					mfs->block[data]->data[k++] |= n;
+					a = in;
+					a = a & 0xF;
+					a = a << 4;
+					mfs->block[data]->data[k] = a;
+				}
+
+				if(i%4 == 2){
+					n = in >> 6;
+					mfs->block[data]->data[k++] |= n;
+					a = in;
+					a = a & 0x3F;
+					a = a << 2;
+					mfs->block[data]->data[k] = a;
+				}
+
+				if(i%4 ==3){
+					n = in >> 8;
+					mfs->block[data]->data[k++] |= n;
+					a = in;
+					a = a & 0xFF;
+					mfs->block[data]->data[k] = a;
+					k++;
+				}
+
+				printf("%d번 데이터 블럭 할당 완료\n",in);
+
+				i++;
+			}
+		}
+		*/
+
+		while(z < 102 && (m+1) != loopQ){
+
+			in = d_bit_check();
+
+			mfs->block[in] = malloc(sizeof(struct d_block));
+
+			for(int i=0;i<128;i++){
+				mfs->block[in]->data[i] = 0;
+			}
+
+			d_bit_insert();
+
+			if(i%4 == 0){
+				n = in >> 2;
+				mfs->block[data]->data[k++] = n;
+				a = in;
+				a = a & 0x3;
+				a = a << 6;
+				mfs->block[data]->data[k] = a;
+			}
+
+			if(i%4 == 1){
+				n = in >> 4;
+				mfs->block[data]->data[k++] |= n;
+				a = in;
+				a = a & 0xF;
+				a = a << 4;
+				mfs->block[data]->data[k] = a;
+			}
+
+			if(i%4 == 2){
+				n = in >> 6;
+				mfs->block[data]->data[k++] |= n;
+				a = in;
+				a = a & 0x3F;
+				a = a << 2;
+				mfs->block[data]->data[k] = a;
+			}
+
+			if(i%4 ==3){
+				n = in >> 8;
+				mfs->block[data]->data[k++] |= n;
+				a = in;
+				a = a & 0xFF;
+				mfs->block[data]->data[k] = a;
+				k++;
+			}
+
+			i++;
+			z++;
+
+		}
+		m++;
+		z=0;
+		i=0;
+	}
+
+}
+
+unsigned *get_dsidbit(int inode){
+	unsigned c,n;
+	int loopQ,k=0,data,i=0,a=1;
+
+	loopQ = mfs->inode[inode].num;
+	data = mfs->inode[inode].dou;
+
+	unsigned *tmp;
+	tmp = (unsigned *) malloc((loopQ) * sizeof(unsigned));
+
+	while(i<loopQ){
+
+		if(i == 102)
+			return tmp;
+
+
+		if(i%4 == 0){
+			c = mfs->block[data]->data[k++];
+			c = c << 2;
+			c = c & 0x3FF;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 6; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 1){
+			c = mfs->block[data]->data[k++];
+			c = c << 4;
+			c = c & 0x3F0;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 4; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 2){
+			c = mfs->block[data]->data[k++];
+			c = c << 6;
+			c = c & 0x3C0;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 2; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 3){
+			c = mfs->block[data]->data[k++];
+			c = c << 8;
+			c = c & 0x300;
+			n = mfs->block[data]->data[k]; 
+			c += n;
+			tmp[k-(a++)] = c;
+			k++;
+		}
+		i++;
+
+	}
+
+	return tmp;
+
+}
+
 void make_did(int inode){
 	int data;
 
 	data = d_bit_check();
 
-	mfs->inode[inode].didb = mfs->block[data];
-
 	mfs->block[data] = malloc(sizeof(struct d_block));
+
+	mfs->inode[inode].didb = mfs->block[data];
+	mfs->inode[inode].dou = data;
+
+	for(int i=0;i<128;i++)
+		mfs->inode[inode].didb->data[i] = '\0';
 
 	d_bit_insert();
 }
@@ -631,14 +968,19 @@ void sin_data(char a_i[20],int inode,int fpos){
 
 	while(n<loopQ){
 
-		if( z == 102)
-			return ;
+		if(z > 101){
+			mfs->block[data]->data[k] = '\0';
+			make_did(inode);
+			set_didbit(a_i,inode);
+			set_dsidbit(a_i,inode);
+			return;
+		}
+
 
 		if(n % 128 == 0){
 			if(n/127 != 0)
 				mfs->block[data]->data[k] = '\0';
 			data = tmp[m++];
-			printf("data : %d\n",data);
 			k = 0;
 			z++;
 		}
@@ -748,8 +1090,6 @@ void myls(char a_i[30]){
 	int s=0,k=0,inode;
 	char tmp[5],tmp1[4],type[2];
 	struct dtree *p = cur->left;
-
-	printf("data : %s\n",cur->p->db->data);
 
 	if(!strcmp(a_i,"-i")){
 		while(s<13){
@@ -1019,6 +1359,7 @@ void mycd(char a_i[30]){
 
 }
 
+
 // ok
 void myrmdir(char a_i[30]){
 	int s=0,k,ck=999,n=0,l,m=0,id,dd;
@@ -1248,6 +1589,8 @@ void mycpfrom(char a_i[20],char name[5]){
 		mfs->block[data] = malloc(sizeof(struct d_block));
 		mfs->inode[inode].db = mfs->block[data];
 
+		// 데이터블럭 링크 
+
 		for(int i=0;i<128;i++)
 			mfs->block[data]->data[i] = '\0';
 
@@ -1280,6 +1623,8 @@ void mycpfrom(char a_i[20],char name[5]){
 		mfs->block[data] = malloc(sizeof(struct d_block));
 		mfs->inode[inode].db = mfs->block[data];
 
+		// 데이터블럭 링크 
+
 		for(int i=0;i<128;i++)
 			mfs->block[data]->data[i] = '\0';
 
@@ -1297,44 +1642,5 @@ void mycpfrom(char a_i[20],char name[5]){
 }
 
 void mycat(char a_i[20]){
-	struct dtree *p = cur->left;
-	int s=0,k=0,ck=0,n=0;
-	char tmp[5],tmp1[4],type[2];
-
-	if(a_i !=NULL){
-
-		while(1){
-
-			k=0;
-			for(int i=0;i<5;i++)
-				tmp[i] = '\0';
-
-			for(int j=s+3;j<s+7;j++){
-				if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-					tmp[k] = '\0';
-					break;
-				}
-				tmp[k] = cur->p->db->data[j]; 
-				k++;
-			}
-
-			if(!strcmp(a_i,tmp)){
-				ck = n;
-			}
-
-			if(cur->p->db->data[s+7] == '\0')	
-				break;
-			s+=7;
-			n++;
-		}
-
-		for(int i=0;i<ck-2;i++){
-			p = p->right;
-		}
-
-		printf("%s\n",p->p->db->data);
-
-
-	}
 
 }
