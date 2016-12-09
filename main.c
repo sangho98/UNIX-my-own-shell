@@ -36,6 +36,7 @@ struct my_file_system{
 };
 
 struct dtree{
+	char name[5];
 	struct inode *p;
 	struct dtree *left;
 	struct dtree *right;
@@ -65,16 +66,19 @@ void dsin_data(FILE *,int,int);
 void in_dir(char [],int);
 void mymkdir(char []);
 int mycd(char []);
-void mycd_func(char []);
+int mycd_func(char []);
 void myls(char []);
+//void myls_func(char [],char []);
 void myrmdir(char []);
-void myrmdir_func(char []);
-void mytree(struct dtree *,int);
+//void myrmdir_func(char []);
+void mytree(struct dtree*,int);
+void mytree_func(struct dtree*,int);
 void myshowinode(char []);
 void myshowblock(char []);
 void mystate();
 void mycpfrom(char[],char[]);
 void mycat(char[]);
+void mytouch(char []);
 
 struct my_file_system *mfs;
 
@@ -82,10 +86,14 @@ struct dtree *D=NULL;
 struct dtree *cur = NULL;
 struct dtree *back = NULL;
 struct dtree *back2 = NULL;
+struct dtree *back3 = NULL;
 
 char path[30]= {'\0'};
 char backup[30]= {'\0'};
 char backup2[30]= {'\0'};
+char backup3[30]= {'\0'};
+
+int d=0;
 
 int main() {
 
@@ -146,6 +154,7 @@ int main() {
 
 			D = malloc(sizeof(struct dtree));
 
+			strcpy(D->name,"/");
 			D->left = NULL;
 			D->right = NULL;
 			D->p = mfs->inode[0];
@@ -234,7 +243,28 @@ void command(char i[30], char a_i[30],char a_i2[20]){
 	}
 
 	if(!strcmp(i,"mytree")){
-		mytree(D,0);
+		if(a_i[0] != '\0'){
+			int ck;
+
+			sprintf(backup3,"%s",path);
+			back3 = cur;
+
+			ck = mycd_func(a_i);
+
+			if(ck == 1){
+				return;
+			}
+
+			struct dtree *tr = cur;
+
+			mytree_func(tr,0);
+
+			cur = back3;
+			sprintf(path,"%s",backup3);
+		}else{
+			struct dtree *tr = cur;
+			mytree(tr,0);
+		}
 	}
 
 	if(!strcmp(i,"mypwd")){
@@ -242,7 +272,7 @@ void command(char i[30], char a_i[30],char a_i2[20]){
 	}
 
 	if(!strcmp(i,"myrmdir")){
-		myrmdir_func(a_i);
+		myrmdir(a_i);
 	}
 
 	if(!strcmp(i,"myshowinode")){
@@ -266,6 +296,14 @@ void command(char i[30], char a_i[30],char a_i2[20]){
 		system(i);
 	}
 
+	if(!strcmp(i,"mytouch")){
+		if(a_i[0] != '\0'){
+			sprintf(name,"%c%c%c%c",a_i[0],a_i[1],a_i[2],a_i[3]);
+			mytouch(name);
+		}else{
+			printf("파일명을 입력 해주세요.\n");
+		}
+	}
 
 }
 
@@ -360,22 +398,6 @@ void i_bit_del(int id){
 	mfs->super[id/32].imask ^= mask;
 
 	free(mfs->inode[id]);
-	/*
-	mfs->inode[id].file_type = -1;
-
-	for(int i=0;i<30;i++)
-		mfs->inode[id].file_date[i] = '\0';
-
-	mfs->inode[id].file_size = 0;
-
-	mfs->inode[id].dir = -1;
-
-	mfs->inode[id].sin = -1;
-
-	mfs->inode[id].dou = -1;
-
-	mfs->inode[id].db = NULL;
-	*/
 
 }
 
@@ -391,6 +413,8 @@ void d_bit_del(int id){
 		mask >>= (dd%32);
 		mfs->super[dd/64].dmask2 ^= mask;
 	}
+
+	free(mfs->block[dd]);
 
 }
 
@@ -1135,6 +1159,7 @@ void mymkdir(char name[5]){
 
 		mfs->inode[inode] = malloc(sizeof(struct inode));
 
+		strcpy(new->name,name);
 		new->p = mfs->inode[inode];
 		new->left = NULL;
 		new->right = NULL;
@@ -1169,6 +1194,7 @@ void mymkdir(char name[5]){
 
 		mfs->inode[inode] = malloc(sizeof(struct inode));
 
+		strcpy(new->name,name);
 		new->p = mfs->inode[inode];
 		new->left = NULL;
 		new->right = NULL;
@@ -1198,12 +1224,12 @@ void mymkdir(char name[5]){
 }
 
 // 옵션 추가
-void myls(char a_i[30]){
+void myls(char a_i2[30]){
 	int s=0,k=0,inode;
 	char tmp[5],tmp1[4],type[2];
 	struct dtree *p = cur->left;
 
-	if(!strcmp(a_i,"-i")){
+	if(!strcmp(a_i2,"-i")){
 		while(s<13){
 			k=0;
 			for(int i=s;i<s+3;i++){
@@ -1246,7 +1272,7 @@ void myls(char a_i[30]){
 		return;
 	}
 
-	if(!strcmp(a_i,"-l")){
+	if(!strcmp(a_i2,"-l")){
 		while(s<13){
 			k=0;
 			for(int i=s;i<s+3;i++){
@@ -1303,7 +1329,7 @@ void myls(char a_i[30]){
 		return;
 	}
 
-	if( (!strcmp(a_i,"-li")) || (!strcmp(a_i,"-il")) ){
+	if( (!strcmp(a_i2,"-li")) || (!strcmp(a_i2,"-il")) ){
 
 		while(s<13){
 			k=0;
@@ -1393,7 +1419,51 @@ void myls(char a_i[30]){
 	}
 }
 
-// ok
+void myls_func(char a_i[30],char a_i2[30]){
+	char *line,*line2;
+	char tmp[30],tmp2[100][10];
+	int s=0,i=0,a=0;
+
+	line = strtok(a_i,"/");
+
+	if(a_i == NULL){
+		myls(a_i2);
+		return;
+	}
+
+	while(line != NULL){
+
+		sprintf(tmp2[s],"%s",line);
+		line = strtok(NULL,"/");
+		s++;
+	}
+
+	strcpy(backup2,path);
+
+	back2 = cur;
+
+	if(a_i[0] == '/'){
+		mycd(a_i);
+	}
+
+	while(i<s){
+
+		if(i==s-1){
+			mycd(tmp2[i]);
+			printf("%s\n",path);
+			myls(a_i2);
+			cur = back2;
+			strcpy(path,backup2);
+			return;
+		}
+
+		mycd(tmp2[i]);
+
+		i++;
+
+	}
+}
+
 int mycd(char a_i[30]){
 	int s=0,k,ck=999,n=0;
 	char tmp[5],tmp2[40];
@@ -1406,8 +1476,11 @@ int mycd(char a_i[30]){
 		return 1;
 	}
 
-	if(a_i[0] == '/')
-		return 2;
+	if(a_i[0] == '/'){
+		sprintf(path,"%s","/");
+		cur = D;
+		return 1;
+	}
 
 	if(a_i !=NULL){
 		sprintf(backup,"%s",path);
@@ -1449,7 +1522,7 @@ int mycd(char a_i[30]){
 			return 0;
 
 		// 미 구현
-		
+
 		if(ck == 1){
 			printf("요기 실행\n");
 			cur = back;
@@ -1485,19 +1558,21 @@ int mycd(char a_i[30]){
 
 }
 
-void mycd_func(char a_i[30]){
+int mycd_func(char a_i[30]){
 	int s;
 	char *line;
+	char tmp;
 
 	line = strtok(a_i,"/");
 
 	strcpy(backup2,path);
 
 	back2 = cur;
-	
+
 	if(a_i[0] == '/'){
 		mycd(a_i);
 	}
+
 
 	while(line != NULL){
 		// 여기에 추가 하면 될듯!
@@ -1505,7 +1580,7 @@ void mycd_func(char a_i[30]){
 
 		if(s == 1){
 			cur = back2;
-			break;
+			return 1;
 		}
 
 		line = strtok(NULL,"/");
@@ -1525,6 +1600,7 @@ void myrmdir(char a_i[30]){
 
 	for(int i=0;i<100;i++)
 		tmp3[i] = '\0';
+
 
 	if(a_i !=NULL){
 
@@ -1628,63 +1704,77 @@ void myrmdir(char a_i[30]){
 	}
 
 }
+/*
+   void myrmdir_func(char a_i[30]){
+   char *line,*line2;
+   char tmp[30],tmp2[100][5];
+   int s=0,i=0,a=0;
 
-void myrmdir_func(char a_i[30]){
-	char *line,*line2;
-	char tmp[30],tmp2[5];
-	int s=0,i=0,a=0;
+   line = strtok(a_i,"/");
 
-	line = strtok(a_i,"/");
+   strcpy(tmp,a_i);
 
-	strcpy(tmp,a_i);
+   while(line != NULL){
 
-	while(line != NULL){
 
-		s++;
+   sprintf(tmp2[s],"%s",line);
+   line = strtok(NULL,"/");
+   s++;
+   }
 
-		sprintf(tmp2,"%s",line);
-		line = strtok(NULL,"/");
+   strcpy(backup2,path);
+
+   back2 = cur;
+
+   if(a_i[0] == '/'){
+   mycd(a_i);
+   }
+
+   while(i<s){
+
+   if(i==s-1){
+   myrmdir(tmp2[i]);
+   cur = back2;
+   strcpy(path,backup2);
+   return;
+   }
+
+   mycd(tmp2[i]);
+
+   i++;
+
+   }
+
+
+   }
+   */
+
+void mytree(struct dtree *tr,int d){
+
+	if(tr != NULL){
+		for(int i=0;i<d;i++)
+			printf("--");
+		if(d!=0)
+			printf("* ");
+		printf("%s\n",tr->name);
+		mytree(tr->left,d+1);
+		mytree(tr->right,d);
 	}
-
-	strcpy(backup2,path);
-
-	back2 = cur;
-
-	if(a_i[0] == '/'){
-		mycd(a_i);
-	}
-
-	line2 = strtok(tmp,"/");
-
-	while(i<s){
-
-		if(i==s-1){
-			myrmdir(tmp2);
-			cur = back2;
-			strcpy(path,backup2);
-			return;
-		}
-
-
-		mycd(line2);
-
-		i++;
-
-		line2 = strtok(NULL,"/");
-	}
-
 
 }
 
-void mytree(struct dtree *D,int d){
-	for(int i=0;i<d;i++)
-		printf(" ");
-	printf("%d\n",D->p->dir);
+void mytree_func(struct dtree *tr,int d){
 
-	if(D->left!=NULL)
-		mytree(D->left,d+1);
-	if(D->right!=NULL)
-		mytree(D->right,d);
+
+	if(tr != NULL){
+		for(int i=0;i<d;i++)
+			printf("--");
+		if(d!=0)
+			printf("* ");
+		printf("%d\n",tr->name);
+		mytree_func(tr->left,d+1);
+		mytree_func(tr->right,d);
+	}
 
 }
 
@@ -1725,7 +1815,7 @@ void myshowblock(char a_i[30]){
 		return;
 	}
 
-	
+
 	num = atoi(a_i);
 
 	if(mfs->block[num] == NULL){
@@ -1804,6 +1894,7 @@ void mycpfrom(char a_i[20],char name[5]){
 
 		mfs->inode[inode] = malloc(sizeof(struct inode));
 
+		strcpy(new->name,name);
 		new->p = mfs->inode[inode];
 		new->left = NULL;
 		new->right = NULL;
@@ -1842,6 +1933,7 @@ void mycpfrom(char a_i[20],char name[5]){
 
 		mfs->inode[inode] = malloc(sizeof(struct inode));
 
+		strcpy(new->name,name);
 		new->p = mfs->inode[inode];
 		new->left = NULL;
 		new->right = NULL;
@@ -1874,5 +1966,142 @@ void mycpfrom(char a_i[20],char name[5]){
 }
 
 void mycat(char a_i[20]){
+
+}
+
+void myrm(char a_i[20]){
+
+}
+
+void mytouch(char name[5]){
+	int s=0,k,ck=-1,n=0,ckin= -1;
+	int inode,data;
+	char tmp[5],tmp1[4];
+	struct dtree *p = cur->left;
+
+	while(s<13){
+		k=0;
+		for(int i=s;i<s+3;i++){
+			tmp1[k] = cur->p->db->data[i];
+			k++;
+		}
+		k=0;
+		for(int j=s+3;j<s+7;j++){
+			tmp[k] = cur->p->db->data[j]; 
+			k++;
+		}
+		s+= 7;
+	}
+
+	if(cur->left !=NULL){
+		while(1){
+			k=0;
+			for(int i=s;i<s+3;i++){
+				tmp1[k] = cur->p->db->data[i];
+				k++;
+			}
+			k=0;
+			for(int j=s+3;j<s+7;j++){
+				tmp[k] = cur->p->db->data[j]; 
+				k++;
+			}
+			if(!strcmp(name,tmp)){
+				ckin = atoi(tmp1);
+				break;
+			}
+			if(p->right==NULL)
+				break;
+			s+= 7;
+			p = p->right;
+		}
+	}
+
+	if(ckin == -1){
+
+		inode = i_bit_check();
+		data = d_bit_check();
+
+		if(cur->left == NULL){
+			struct dtree *new = malloc(sizeof(struct dtree));
+
+			mfs->inode[inode] = malloc(sizeof(struct inode));
+
+			strcpy(new->name,name);
+			new->p = mfs->inode[inode];
+			new->left = NULL;
+			new->right = NULL;
+
+			mfs->inode[inode]->file_type = 0;
+			cal_date(inode);
+			mfs->inode[inode]->file_size = 0;
+
+			mfs->inode[inode]->dir = data;
+			mfs->inode[inode]->sin = -1;
+			mfs->inode[inode]->dou = -1;
+
+			mfs->inode[inode]->num = 0;
+
+			mfs->block[data] = malloc(sizeof(struct d_block));
+			mfs->inode[inode]->db = mfs->block[data];
+
+			// 데이터블럭 링크 
+
+			for(int i=0;i<128;i++)
+				mfs->block[data]->data[i] = '\0';
+
+
+			i_bit_insert();
+			d_bit_insert();
+
+			in_dir(name,inode);
+
+			cur->left = new;
+
+		}else{
+			struct dtree *new = malloc(sizeof(struct dtree));
+			struct dtree *temp = cur->left;
+
+			while(temp->right!=NULL)
+				temp = temp->right;
+
+			mfs->inode[inode] = malloc(sizeof(struct inode));
+
+			strcpy(new->name,name);
+			new->p = mfs->inode[inode];
+			new->left = NULL;
+			new->right = NULL;
+
+			mfs->inode[inode]->file_type = 0;
+			cal_date(inode);
+			mfs->inode[inode]->file_size = 0;
+			mfs->inode[inode]->dir = data;
+			mfs->inode[inode]->sin = -1;
+			mfs->inode[inode]->dou = -1;
+			mfs->inode[inode]->num = 0;
+
+			mfs->block[data] = malloc(sizeof(struct d_block));
+			mfs->inode[inode]->db = mfs->block[data];
+
+			// 데이터블럭 링크 
+
+			for(int i=0;i<128;i++)
+				mfs->block[data]->data[i] = '\0';
+
+
+			i_bit_insert();
+			d_bit_insert();
+
+			in_dir(name,inode);
+
+			temp->right = new;
+
+		}
+
+	}else{
+		// 시간 함수
+		cal_date(ckin);
+
+	}
+
 
 }
