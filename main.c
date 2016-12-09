@@ -397,7 +397,10 @@ void i_bit_del(int id){
 	mask >>= (id%32);
 	mfs->super[id/32].imask ^= mask;
 
+	printf("id = %d\n",id);
+
 	free(mfs->inode[id]);
+	mfs->inode[id] = NULL;
 
 }
 
@@ -414,7 +417,9 @@ void d_bit_del(int id){
 		mfs->super[dd/64].dmask2 ^= mask;
 	}
 
+	printf("dd = %d\n",dd);
 	free(mfs->block[dd]);
+	mfs->block[dd] = NULL;
 
 }
 
