@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -6,7 +7,6 @@
 
 struct d_block{
 	int num; // 데이터블록 번호
-	int type;
 	unsigned char data[128];
 }dblock;
 
@@ -19,6 +19,7 @@ struct inode{
 	int dou;
 	int num;
 	int numP;
+	int numS;
 	struct d_block *db;
 	struct d_block *sidb;
 	struct d_block *didb;
@@ -42,6 +43,12 @@ struct dtree{
 	struct dtree *right;
 };
 
+struct btree{
+	struct d_block *p;
+	struct btree *next;
+
+};
+
 void prompt(char [], char [],char []);
 void command(char [], char [],char []);
 int i_bit_check();
@@ -54,6 +61,7 @@ void cal_date(int);
 int cal_size(char []);
 void set_sidbit(char [],int);
 int* get_sidbit(int);
+int *get_sidbit_ADD(int);
 void make_sid(int);
 void set_didbit(int);
 int* get_didbit(int);
@@ -61,8 +69,8 @@ void set_dsidbit(int);
 int* get_dsidbit(int);
 void make_did(int);
 void in_data(char [],int);
-void sin_data(FILE *,int,int);
-void dsin_data(FILE *,int,int);
+void sin_data(char [],int,int);
+void dsin_data(char [],int,int);
 void in_dir(char [],int);
 void mymkdir(char []);
 int mycd(char []);
@@ -77,8 +85,14 @@ void myshowinode(char []);
 void myshowblock(char []);
 void mystate();
 void mycpfrom(char[],char[]);
-void mycat(char[]);
 void mytouch(char []);
+void mycat(char []);
+//void myshowfile(char [],char [],char []);
+//void mycp(char [],char []);
+//void mymv(char [],char []);
+//void mycpto(char [],char []);
+//void myrm(char []);
+//void mymv(char [],char []);
 
 struct my_file_system *mfs;
 
@@ -92,8 +106,6 @@ char path[30]= {'\0'};
 char backup[30]= {'\0'};
 char backup2[30]= {'\0'};
 char backup3[30]= {'\0'};
-
-int d=0;
 
 int main() {
 
@@ -244,6 +256,11 @@ void command(char i[30], char a_i[30],char a_i2[20]){
 
 	if(!strcmp(i,"mytree")){
 		if(a_i[0] != '\0'){
+			if(!strcmp(a_i,"/")){
+				struct dtree *tr = D;
+				mytree_func(tr,0);
+				return;
+			}
 			int ck;
 
 			sprintf(backup3,"%s",path);
@@ -462,6 +479,7 @@ void set_sidbit(char a_i[20],int inode){
 	}
 
 	mfs->inode[inode]->num = loopQ;
+	mfs->inode[inode]->numS = loopQ;
 
 	while(m<loopQ){
 
@@ -471,6 +489,7 @@ void set_sidbit(char a_i[20],int inode){
 		in = d_bit_check();
 
 		mfs->block[in] = malloc(sizeof(struct d_block));
+		printf("%d번 데이터 블럭 할당 완료\n",in);
 
 		d_bit_insert();
 
@@ -522,6 +541,68 @@ int *get_sidbit(int inode){
 	int loopQ,k=0,data,i=0,a=1;
 
 	loopQ = mfs->inode[inode]->num;
+	data = mfs->inode[inode]->sin;
+
+	int *tmp;
+	tmp = (int *)malloc( (loopQ) * sizeof(int));
+
+	while(i<loopQ){
+
+		if(i == 102)
+			return tmp;
+
+		if(i%4 == 0){
+			c = mfs->block[data]->data[k++];
+			c = c << 2;
+			c = c & 0x3FF;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 6; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 1){
+			c = mfs->block[data]->data[k++];
+			c = c << 4;
+			c = c & 0x3F0;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 4; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 2){
+			c = mfs->block[data]->data[k++];
+			c = c << 6;
+			c = c & 0x3C0;
+			n = mfs->block[data]->data[k]; 
+			n = n >> 2; 
+			c += n;
+			tmp[k-a] = c;
+		}
+
+		if(i%4 == 3){
+			c = mfs->block[data]->data[k++];
+			c = c << 8;
+			c = c & 0x300;
+			n = mfs->block[data]->data[k]; 
+			c += n;
+			tmp[k-(a++)] = c;
+			k++;
+		}
+		i++;
+
+	}
+
+	return tmp;
+
+}
+
+int *get_sidbit_ADD(int inode){
+	unsigned c,n;
+	int loopQ,k=0,data,i=0,a=1;
+
+	loopQ = mfs->inode[inode]->numS;
 	data = mfs->inode[inode]->sin;
 
 	int *tmp;
@@ -761,7 +842,6 @@ void set_dsidbit(int inode){
 			in = d_bit_check();
 
 			mfs->block[in] = malloc(sizeof(struct d_block));
-			printf("%d번 데이터 블럭 할당 완료\n",in);
 
 			d_bit_insert();
 
@@ -988,6 +1068,7 @@ int *get_dsidbit(int inode){
 
 
 	free(tmp2);
+	tmp2 = NULL;
 
 	return tmp;
 
@@ -1024,7 +1105,7 @@ void in_data(char a_i[20],int inode){
 			mfs->inode[inode]->db->data[k] = '\0';
 			make_sid(inode);
 			set_sidbit(a_i,inode);
-			sin_data(fp,inode,ftell(fp));
+			sin_data(a_i,inode,ftell(fp));
 			return;
 		}
 		if(ftell(fp) == size){
@@ -1043,59 +1124,88 @@ void in_data(char a_i[20],int inode){
 
 }
 
-void sin_data(FILE *fp,int inode,int fpos){
-	//FILE *fp;
-	int size,ch,k=0,n=0,m=0,z=0,loopQ,data;
+void sin_data(char a_i[30],int inode,int fpos){
+	FILE *fp;
+	int size,ch,k=0,n=0,m=0,z=0,a=0,loopQ,data;
 	int *tmp;
 
-	//fp = fopen(a_i,"rt");
+	fp = fopen(a_i,"rt");
 	size = mfs->inode[inode]->file_size;
-	loopQ = (mfs->inode[inode]->num * 128);
+	loopQ = mfs->inode[inode]->num;
+	tmp = malloc(mfs->inode[inode]->numS * sizeof(int));
 	tmp = get_sidbit(inode);
 
 	fseek(fp,fpos,SEEK_SET);
 
 	while(n<loopQ){
 
-		if(z > 101){
-			free(tmp);
-			mfs->block[data]->data[k] = '\0';
-			make_did(inode);
-			set_didbit(inode);
-			set_dsidbit(inode);
-			dsin_data(fp,inode,ftell(fp));
-			return;
+		data = tmp[m++];
+
+		for(int i=0;i<128;i++){
+
+			if(ftell(fp) == size)
+				return;
+
+			ch = fgetc(fp);
+			mfs->block[data]->data[i] = ch;
 		}
 
-
-		if(n % 128 == 0){
-			if(n/127 != 0)
-				mfs->block[data]->data[k] = '\0';
-			data = tmp[m++];
-			k = 0;
-			z++;
-		}
-
-
-		if(ftell(fp) == size){
-			mfs->block[data]->data[k] = '\0';
-			return;
-		}
-
-
-		ch = fgetc(fp);
-
-		mfs->block[data]->data[k] = ch;
-
-		k++;
 		n++;
 	}
 
+	make_did(inode);
+	set_didbit(inode);
+	set_dsidbit(inode);
+	dsin_data(a_i,inode,ftell(fp));
+	return;
+
+	/*
+
+	   while(n<loopQ){
+
+	   if(z == 102){
+	//free(tmp);
+	make_did(inode);
+	set_didbit(inode);
+	set_dsidbit(inode);
+	dsin_data(a_i,inode,ftell(fp));
+	return;
+	}
+
+
+	if(a % 128 == 0){
+	data = tmp[m++];
+	printf("data = %d\n",data);
+	a = 0;
+	k = 0;
+	z++;
+	}
+
+
+	if(ftell(fp) == size){
+	mfs->block[data]->data[k] = '\0';
+	return;
+	}
+
+
+	ch = fgetc(fp);
+
+	mfs->block[data]->data[k] = ch;
+
+	a++;
+	k++;
+	n++;
+	}
+	 */
+
 }
 
-void dsin_data(FILE *fp,int inode,int fpos){
+void dsin_data(char a_i[30],int inode,int fpos){
+	FILE *fp;
 	int size,ch,k=0,n=0,m=0,z=0,loopQ,loopP,data,x;
 	int *tmp;
+
+	fp = fopen(a_i,"rt");
 
 	size = mfs->inode[inode]->file_size;
 
@@ -1113,8 +1223,6 @@ void dsin_data(FILE *fp,int inode,int fpos){
 	while(n<x){
 
 		if(n % 128 == 0){
-			if(n/127 != 0)
-				mfs->block[data]->data[k] = '\0';
 			data = tmp[m++];
 			k = 0;
 			z++;
@@ -1123,7 +1231,7 @@ void dsin_data(FILE *fp,int inode,int fpos){
 
 		if(ftell(fp) == size){
 			printf("사이즈 같아요!\n");
-			mfs->block[data]->data[k] = '\0';
+			//mfs->block[data]->data[k] = '\0';
 			break;
 		}
 
@@ -1136,7 +1244,6 @@ void dsin_data(FILE *fp,int inode,int fpos){
 		n++;
 	}
 
-	free(tmp);
 
 }
 void in_dir(char name[5],int inode){
@@ -1173,6 +1280,8 @@ void mymkdir(char name[5]){
 		cal_date(inode);
 		mfs->inode[inode]->file_size = 0;
 		mfs->inode[inode]->dir = data;
+		mfs->inode[inode]->sin = -1;
+		mfs->inode[inode]->dou = -1;
 		mfs->inode[inode]->num = 0;
 
 		mfs->block[data] = malloc(sizeof(struct d_block));
@@ -1208,6 +1317,8 @@ void mymkdir(char name[5]){
 		cal_date(inode);
 		mfs->inode[inode]->file_size = 0;
 		mfs->inode[inode]->dir = data;
+		mfs->inode[inode]->sin = -1;
+		mfs->inode[inode]->dou = -1;
 		mfs->inode[inode]->num = 0;
 
 		mfs->block[data] = malloc(sizeof(struct d_block));
@@ -1424,50 +1535,52 @@ void myls(char a_i2[30]){
 	}
 }
 
-void myls_func(char a_i[30],char a_i2[30]){
-	char *line,*line2;
-	char tmp[30],tmp2[100][10];
-	int s=0,i=0,a=0;
+/*
+   void myls_func(char a_i[30],char a_i2[30]){
+   char *line,*line2;
+   char tmp[30],tmp2[100][10];
+   int s=0,i=0,a=0;
 
-	line = strtok(a_i,"/");
+   line = strtok(a_i,"/");
 
-	if(a_i == NULL){
-		myls(a_i2);
-		return;
-	}
+   if(a_i == NULL){
+   myls(a_i2);
+   return;
+   }
 
-	while(line != NULL){
+   while(line != NULL){
 
-		sprintf(tmp2[s],"%s",line);
-		line = strtok(NULL,"/");
-		s++;
-	}
+   sprintf(tmp2[s],"%s",line);
+   line = strtok(NULL,"/");
+   s++;
+   }
 
-	strcpy(backup2,path);
+   strcpy(backup2,path);
 
-	back2 = cur;
+   back2 = cur;
 
-	if(a_i[0] == '/'){
-		mycd(a_i);
-	}
+   if(a_i[0] == '/'){
+   mycd(a_i);
+   }
 
-	while(i<s){
+   while(i<s){
 
-		if(i==s-1){
-			mycd(tmp2[i]);
-			printf("%s\n",path);
-			myls(a_i2);
-			cur = back2;
-			strcpy(path,backup2);
-			return;
-		}
+   if(i==s-1){
+   mycd(tmp2[i]);
+   printf("%s\n",path);
+   myls(a_i2);
+   cur = back2;
+   strcpy(path,backup2);
+   return;
+   }
 
-		mycd(tmp2[i]);
+   mycd(tmp2[i]);
 
-		i++;
+   i++;
 
-	}
-}
+   }
+   }
+ */
 
 int mycd(char a_i[30]){
 	int s=0,k,ck=999,n=0;
@@ -1643,7 +1756,11 @@ void myrmdir(char a_i[30]){
 
 		if(ck == 2){
 			if(l == 2){
-				cur->left = NULL;
+				if(cur->left->p->db->data[14] >= '0' && cur->left->p->db->data[14] <= '9'){
+					printf("빈 디렉터리가 아닙니다.\n");
+					return;
+				}
+
 				for(int i=0;i<ck*7;i++){
 					tmp2[i] = cur->p->db->data[i];
 				}
@@ -1651,6 +1768,10 @@ void myrmdir(char a_i[30]){
 					tmp5[i-(ck*7)]= cur->p->db->data[i];
 				}
 				id = atoi(tmp5);
+				if(mfs->inode[id]->file_type == 0){
+					printf("디렉터리가 아닙니다.\n");
+					return;
+				}
 				d_bit_del(id);
 				i_bit_del(id);
 				for(int i=(ck*7)+7;i<(l*7);i++){
@@ -1658,12 +1779,17 @@ void myrmdir(char a_i[30]){
 				}
 				sprintf(tmp4,"%s%s",tmp2,tmp3);
 				sprintf(cur->p->db->data,"%s",tmp4);
+				cur->left = NULL;
 				return;
 			}
 			t = cur->left;
-			cur->left = cur->left->right;
-			t->right = NULL;
-			free(t);
+
+			if(t->p->db->data[14] >= '0' && t->p->db->data[14] <= '9'){
+				printf("%s\n",t->p->db->data);
+				printf("빈 디렉터리가 아닙니다.\n");
+				return;
+			}
+
 			for(int i=0;i<ck*7;i++){
 				tmp2[i] = cur->p->db->data[i];
 			}
@@ -1671,6 +1797,10 @@ void myrmdir(char a_i[30]){
 				tmp5[i-(ck*7)]= cur->p->db->data[i];
 			}
 			id = atoi(tmp5);
+			if(mfs->inode[id]->file_type == 0){
+				printf("디렉터리가 아닙니다.\n");
+				return;
+			}
 			d_bit_del(id);
 			i_bit_del(id);
 			for(int i=(ck*7)+7;i<(l*7)+7;i++){
@@ -1679,6 +1809,10 @@ void myrmdir(char a_i[30]){
 			}
 			sprintf(tmp4,"%s%s",tmp2,tmp3);
 			sprintf(cur->p->db->data,"%s",tmp4);
+			cur->left = cur->left->right;
+			t->right = NULL;
+			free(t);
+			t = NULL; // 추가
 			return;
 		}
 
@@ -1686,10 +1820,11 @@ void myrmdir(char a_i[30]){
 			p = p->right;
 		}
 
-		back = p->right;
-		p->right = p->right->right;
-		back->right=NULL;
-		free(back);
+		if(p->right->p->db->data[14] >= '0' && p->right->p->db->data[14] <= '9'){
+			printf("빈 디렉터리가 아닙니다.\n");
+			return;
+		}
+
 		for(int i=0;i<ck*7;i++){
 			tmp2[i] = cur->p->db->data[i];
 		}
@@ -1697,6 +1832,10 @@ void myrmdir(char a_i[30]){
 			tmp5[i-(ck*7)]= cur->p->db->data[i];
 		}
 		id = atoi(tmp5);
+		if(mfs->inode[id]->file_type == 0){
+			printf("디렉터리가 아닙니다.\n");
+			return;
+		}
 		d_bit_del(id);
 		i_bit_del(id);
 		for(int i=(ck*7)+7;i<(l*7)+7;i++){
@@ -1705,6 +1844,10 @@ void myrmdir(char a_i[30]){
 		}
 		sprintf(tmp4,"%s%s",tmp2,tmp3);
 		sprintf(cur->p->db->data,"%s",tmp4);
+		back = p->right;
+		p->right = p->right->right;
+		back->right=NULL;
+		free(back);
 
 	}
 
@@ -1752,7 +1895,7 @@ void myrmdir(char a_i[30]){
 
 
    }
-   */
+ */
 
 void mytree(struct dtree *tr,int d){
 
@@ -1776,7 +1919,7 @@ void mytree_func(struct dtree *tr,int d){
 			printf("--");
 		if(d!=0)
 			printf("* ");
-		printf("%d\n",tr->name);
+		printf("%s\n",tr->name);
 		mytree_func(tr->left,d+1);
 		mytree_func(tr->right,d);
 	}
@@ -1811,7 +1954,7 @@ void myshowinode(char a_i[30]){
 }
 
 void myshowblock(char a_i[30]){
-	int num,chk;
+	int num,chk,i=0;
 
 	chk = a_i[0];
 
@@ -1827,7 +1970,10 @@ void myshowblock(char a_i[30]){
 		printf("해당 블럭은 사용하고 있지 않습니다.\n");
 		return;
 	}else{
-		printf("%s\n",mfs->block[num]->data);
+		while(mfs->block[num]->data[i] != '\0'){
+			printf("%c",mfs->block[num]->data[i]);
+			i++;
+		}
 	}
 
 }
@@ -1909,6 +2055,8 @@ void mycpfrom(char a_i[20],char name[5]){
 		mfs->inode[inode]->file_size = size;
 
 		mfs->inode[inode]->dir = data;
+		mfs->inode[inode]->sin = -1;
+		mfs->inode[inode]->dou = -1;
 
 		mfs->inode[inode]->num = 0;
 
@@ -1947,6 +2095,8 @@ void mycpfrom(char a_i[20],char name[5]){
 		cal_date(inode);
 		mfs->inode[inode]->file_size = size;
 		mfs->inode[inode]->dir = data;
+		mfs->inode[inode]->sin = -1;
+		mfs->inode[inode]->dou = -1;
 		mfs->inode[inode]->num = 0;
 
 		mfs->block[data] = malloc(sizeof(struct d_block));
@@ -1967,14 +2117,6 @@ void mycpfrom(char a_i[20],char name[5]){
 		temp->right = new;
 
 	}
-
-}
-
-void mycat(char a_i[20]){
-
-}
-
-void myrm(char a_i[20]){
 
 }
 
@@ -2108,5 +2250,189 @@ void mytouch(char name[5]){
 
 	}
 
+
+}
+
+void mycat(char a_i[30]){
+	int s=0,k,ck=999,n=0,l,m=0,id,dd;
+	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
+	int *num,*num2,i=0,temp[1024];
+
+	while(1){
+
+		k=0;
+		for(int i=0;i<5;i++)
+			tmp[i] = '\0';
+
+		for(int j=s+3;j<s+7;j++){
+			if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
+				tmp[k] = '\0';
+				break;
+			}
+			tmp[k] = cur->p->db->data[j]; 
+			k++;
+		}
+
+		if(!strcmp(a_i,tmp)){
+			ck = n;
+		}
+
+		if(cur->p->db->data[s+7] == '\0'){	
+			l = n;
+			break;
+		}
+		s+=7;
+		n++;
+	}
+	/////////////////////////////////////////////////
+
+	if(ck == 999){
+		printf("잘못된 경로 입니다.\n");
+		return;
+	}
+
+	if(ck == 2){
+		if(l == 2){
+
+			for(int i=ck*7;i<(ck*7)+3;i++){
+				tmp5[i-(ck*7)]= cur->p->db->data[i];
+			}
+			id = atoi(tmp5);
+
+		}
+
+		for(int i=ck*7;i<(ck*7)+3;i++){
+			tmp5[i-(ck*7)]= cur->p->db->data[i];
+		}
+		id = atoi(tmp5);
+
+	}
+
+
+	for(int i=ck*7;i<(ck*7)+3;i++){
+		tmp5[i-(ck*7)]= cur->p->db->data[i];
+	}
+	id = atoi(tmp5);
+
+	/////////////////////////////////////////////////
+
+	if(mfs->inode[id]->sin == -1){
+		// 다이렉트 블럭
+		for(int i=0;i<mfs->inode[id]->file_size;i++)
+			printf("%c",mfs->inode[id]->db->data[i]);
+
+		return;
+	}
+
+	if(mfs->inode[id]->dou == -1){
+		num = malloc(102 * sizeof(int));
+		num = get_sidbit_ADD(id);
+
+		//여기서 출력
+
+		int b=0;
+
+		for(int i=0;i<mfs->inode[id]->numS;i++)
+			temp[i] = num[i];
+
+		//////////////////////////////////////////
+
+		struct btree *head = NULL;
+		struct btree *tail = NULL;
+
+		b = 0;
+
+		while(temp[b] != 0){
+
+			struct btree *new = malloc(sizeof(struct btree));
+
+			new->p = mfs->block[temp[b]];
+			new->next = NULL;
+
+			if(head == NULL && tail == NULL)
+				head = tail = new;
+			else{
+				tail->next = new;
+				tail = new;
+			}
+
+			b++;
+
+		}
+
+		struct btree *print = head;
+
+		while(print != NULL){
+			for(int i=0;i<128;i++)
+				printf("%c",print->p->data[i]);
+			print = print->next;
+		}
+
+		return;
+	}
+
+	int loopQ,loopP;
+
+	loopQ = mfs->inode[id]->num;
+	loopP = mfs->inode[id]->numP;
+
+	num = malloc(102 * sizeof(int));
+
+	num = get_sidbit_ADD(id);
+
+	num2 = malloc( ( ((loopQ - 1) * 102) + loopP ) * sizeof(int));
+
+	num2 = get_dsidbit(id);
+
+	int b=0;
+
+	for(int i=0;i<102;i++)
+		temp[i] = num[i];
+
+	while(1){
+		if(num2[b] == 0)
+			break;
+
+		temp[b+102] = num2[b];
+
+		b++;
+	}
+
+	//////////////////////////////////////////
+
+	struct btree *head = NULL;
+	struct btree *tail = NULL;
+
+	b = 0;
+
+	while(temp[b] != 0){
+
+		struct btree *new = malloc(sizeof(struct btree));
+
+		new->p = mfs->block[temp[b]];
+		new->next = NULL;
+
+		if(head == NULL && tail == NULL)
+			head = tail = new;
+		else{
+			tail->next = new;
+			tail = new;
+		}
+
+		b++;
+
+	}
+
+	struct btree *print = head;
+
+	while(print != NULL){
+		for(int i=0;i<128;i++)
+			printf("%c",print->p->data[i]);
+		print = print->next;
+	}
+
+
+	num = NULL;
+	num2 = NULL;
 
 }
