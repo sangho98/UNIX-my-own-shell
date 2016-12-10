@@ -49,8 +49,8 @@ struct btree{
 
 };
 
-void prompt(char [], char [],char []);
-void command(char [], char [],char []);
+void prompt(char [], char [],char [],char []);
+void command(char [], char [],char [],char []);
 int i_bit_check();
 int d_bit_check();
 void i_bit_insert();
@@ -87,12 +87,11 @@ void mystate();
 void mycpfrom(char[],char[]);
 void mytouch(char []);
 void mycat(char []);
+void mycpto(char [],char []);
 //void myshowfile(char [],char [],char []);
 //void mycp(char [],char []);
 //void mymv(char [],char []);
-//void mycpto(char [],char []);
 //void myrm(char []);
-//void mymv(char [],char []);
 
 struct my_file_system *mfs;
 
@@ -112,7 +111,7 @@ int main() {
 
 	mfs = malloc(sizeof(struct my_file_system));
 
-	char i[30], a_i[20],a_i2[20];
+	char make[10];
 	FILE *ms;
 
 	ms = fopen("myfs","r");
@@ -127,9 +126,9 @@ int main() {
 	while(ms == NULL){
 		printf("Error ! Please make your file system.\n");
 		printf("command : ");
-		scanf("%s",i);
+		scanf("%s",make);
 
-		if(!strcmp(i,"mymkfs")){
+		if(!strcmp(make,"mymkfs")){
 			system("touch myfs");
 
 			for(int i=0;i<16;i++){
@@ -182,24 +181,29 @@ int main() {
 
 	while(1){
 
-		prompt(i,a_i,a_i2);
+		char i[30], a_i[20],a_i2[20],a_i3[20];
+
+		prompt(i,a_i,a_i2,a_i3);
 
 	}
 
 
 }
 
-void prompt(char i[30], char a_i[20],char a_i2[20]){
-	int tmp;
+void prompt(char i[30], char a_i[20],char a_i2[20],char a_i3[20]){
+	char input[100],*result;
+	int tmp = 0;
 
-	printf("\n[ %s ]$ ",path);
+	printf("\n[ %s ]$ ",path); 
 
 
 	scanf("%s",i);
 
 	if((tmp = getchar()) == '\n'){
 		a_i[0] = '\0';
-		command(i,a_i,a_i2);
+		a_i2[0] = '\0';
+		a_i3[0] = '\0';
+		command(i,a_i,a_i2,a_i3);
 		return;
 	}
 
@@ -207,16 +211,26 @@ void prompt(char i[30], char a_i[20],char a_i2[20]){
 
 	if((tmp = getchar()) == '\n'){
 		a_i2[0] = '\0';
-		command(i,a_i,a_i2);
+		a_i3[0] = '\0';
+		command(i,a_i,a_i2,a_i3);
+		return;
+	}
+
+
+	scanf("%s",a_i2);
+
+	if((tmp = getchar()) == '\n'){
+		a_i3[0] = '\0';
+		command(i,a_i,a_i2,a_i3);
 		return;
 	}else{
-		scanf("%s",a_i2);
-		command(i,a_i,a_i2);
-	}
+		scanf("%s",a_i3);
+		command(i,a_i,a_i2,a_i3);
+	};
 
 }
 
-void command(char i[30], char a_i[30],char a_i2[20]){
+void command(char i[30], char a_i[30],char a_i2[20],char a_i3[20]){
 	char name[5];
 
 	if(!strcmp(i,"byebye")){
@@ -320,6 +334,14 @@ void command(char i[30], char a_i[30],char a_i2[20]){
 		}else{
 			printf("파일명을 입력 해주세요.\n");
 		}
+	}
+
+	if(!strcmp(i,"myshowfile")){
+		myshowfile(a_i,a_i2,a_i3);
+	}
+
+	if(!strcmp(i,"mycpto")){
+		mycpto(a_i,a_i2);
 	}
 
 }
@@ -2332,8 +2354,10 @@ void mycat(char a_i[30]){
 
 		int b=0;
 
-		for(int i=0;i<mfs->inode[id]->numS;i++)
-			temp[i] = num[i];
+		temp[0] = mfs->inode[id]->dir;
+
+		for(int i=1;i<mfs->inode[id]->numS+1;i++)
+			temp[i] = num[i-1];
 
 		//////////////////////////////////////////
 
@@ -2386,14 +2410,16 @@ void mycat(char a_i[30]){
 
 	int b=0;
 
-	for(int i=0;i<102;i++)
-		temp[i] = num[i];
+	temp[0] = mfs->inode[id]->dir;
+
+	for(int i=1;i<103;i++)
+		temp[i] = num[i-1];
 
 	while(1){
 		if(num2[b] == 0)
 			break;
 
-		temp[b+102] = num2[b];
+		temp[b+103] = num2[b];
 
 		b++;
 	}
@@ -2420,7 +2446,6 @@ void mycat(char a_i[30]){
 		}
 
 		b++;
-
 	}
 
 	struct btree *print = head;
@@ -2435,4 +2460,207 @@ void mycat(char a_i[30]){
 	num = NULL;
 	num2 = NULL;
 
+}
+
+void myshowfile(char a_i[30],char a_i2[30],char a_i3[30]){
+	int num1,num2;
+
+	num1 = atoi(a_i);
+	num2 = atoi(a_i2);
+}
+
+void mycpto(char a_i[30],char a_i2[30]){
+	int s=0,k,ck=999,n=0,l,m=0,id,dd;
+	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
+	int *num,*num2,i=0,temp[1024];
+
+	FILE *fp;
+
+	fp = fopen(a_i2,"wt");
+
+	while(1){
+
+		k=0;
+		for(int i=0;i<5;i++)
+			tmp[i] = '\0';
+
+		for(int j=s+3;j<s+7;j++){
+			if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
+				tmp[k] = '\0';
+				break;
+			}
+			tmp[k] = cur->p->db->data[j]; 
+			k++;
+		}
+
+		if(!strcmp(a_i,tmp)){
+			ck = n;
+		}
+
+		if(cur->p->db->data[s+7] == '\0'){	
+			l = n;
+			break;
+		}
+		s+=7;
+		n++;
+	}
+	/////////////////////////////////////////////////
+
+	if(ck == 999){
+		printf("잘못된 경로 입니다.\n");
+		return;
+	}
+
+	if(ck == 2){
+		if(l == 2){
+
+			for(int i=ck*7;i<(ck*7)+3;i++){
+				tmp5[i-(ck*7)]= cur->p->db->data[i];
+			}
+			id = atoi(tmp5);
+
+		}
+
+		for(int i=ck*7;i<(ck*7)+3;i++){
+			tmp5[i-(ck*7)]= cur->p->db->data[i];
+		}
+		id = atoi(tmp5);
+
+	}
+
+
+	for(int i=ck*7;i<(ck*7)+3;i++){
+		tmp5[i-(ck*7)]= cur->p->db->data[i];
+	}
+	id = atoi(tmp5);
+
+	/////////////////////////////////////////////////
+
+	if(mfs->inode[id]->sin == -1){
+		// 다이렉트 블럭
+		for(int i=0;i<mfs->inode[id]->file_size;i++)
+			printf("%c",mfs->inode[id]->db->data[i]);
+
+		return;
+	}
+
+	if(mfs->inode[id]->dou == -1){
+		num = malloc(102 * sizeof(int));
+		num = get_sidbit_ADD(id);
+
+		//여기서 출력
+
+		int b=0;
+
+		temp[0] = mfs->inode[id]->dir;
+
+		for(int i=1;i<mfs->inode[id]->numS+1;i++)
+			temp[i] = num[i-1];
+
+		//////////////////////////////////////////
+
+		struct btree *head = NULL;
+		struct btree *tail = NULL;
+
+		b = 0;
+
+		while(temp[b] != 0){
+
+			struct btree *new = malloc(sizeof(struct btree));
+
+			new->p = mfs->block[temp[b]];
+			new->next = NULL;
+
+			if(head == NULL && tail == NULL)
+				head = tail = new;
+			else{
+				tail->next = new;
+				tail = new;
+			}
+
+			b++;
+
+		}
+
+		struct btree *print = head;
+
+		while(print != NULL){
+			for(int i=0;i<128;i++)
+				printf("%c",print->p->data[i]);
+			print = print->next;
+		}
+
+		return;
+	}
+
+	int loopQ,loopP;
+
+	loopQ = mfs->inode[id]->num;
+	loopP = mfs->inode[id]->numP;
+
+	num = malloc(102 * sizeof(int));
+
+	num = get_sidbit_ADD(id);
+
+	num2 = malloc( ( ((loopQ - 1) * 102) + loopP ) * sizeof(int));
+
+	num2 = get_dsidbit(id);
+
+	int b=0;
+
+	temp[0] = mfs->inode[id]->dir;
+
+	for(int i=1;i<103;i++)
+		temp[i] = num[i-1];
+
+	while(1){
+		if(num2[b] == 0)
+			break;
+
+		temp[b+103] = num2[b];
+
+		b++;
+	}
+
+	//////////////////////////////////////////
+
+	struct btree *head = NULL;
+	struct btree *tail = NULL;
+
+	b = 0;
+
+	while(temp[b] != 0){
+
+		struct btree *new = malloc(sizeof(struct btree));
+
+		new->p = mfs->block[temp[b]];
+		new->next = NULL;
+
+		if(head == NULL && tail == NULL)
+			head = tail = new;
+		else{
+			tail->next = new;
+			tail = new;
+		}
+
+		b++;
+	}
+
+	struct btree *print = head;
+
+	int tmmp,v=0;
+
+	while(print != NULL){
+		v = 0;
+		while(print->p->data[v] != '\0'){
+			tmmp = print->p->data[v];
+
+			fputc(tmmp,fp);
+			v++;
+		}
+		print = print->next;
+	}
+
+	num = NULL;
+	num2 = NULL;
 }
