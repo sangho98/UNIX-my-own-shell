@@ -117,14 +117,12 @@ int main() {
 	char make[10];
 	FILE *ms;
 
-	ms = fopen("myfs","r");
+	ms = fopen("myfs","rb");
 
 	if(ms != NULL){
 		// myfs 이진파일 불러들이기 (함수 생성 가능)
-
 		system("rm myfs");
 		main();
-
 	}
 	while(ms == NULL){
 		printf("Error ! Please make your file system.\n");
@@ -185,7 +183,6 @@ int main() {
 	while(1){
 
 		char i[30], a_i[20],a_i2[20],a_i3[20];
-
 
 		prompt(i,a_i,a_i2,a_i3);
 
@@ -1337,103 +1334,11 @@ void myls(char a_i2[30]){
 
 
 	if(!strcmp(a_i2,"-i")){
-		while(s<13){
-			k=0;
-			for(int i=s;i<s+3;i++){
-				tmp1[k] = cur->p->db->data[i];
-				k++;
-			}
-			k=0;
-			for(int j=s+3;j<s+7;j++){
-				tmp[k] = cur->p->db->data[j]; 
-				k++;
-			}
-			inode = atoi(tmp1);
-			printf("%d %s\n",inode,tmp);
-			s+= 7;
-		}
 
-		if(cur->left !=NULL){
-			while(1){
-				k=0;
-				for(int i=s;i<s+3;i++){
-					tmp1[k] = cur->p->db->data[i];
-					k++;
-				}
-				k=0;
-				for(int j=s+3;j<s+7;j++){
-					tmp[k] = cur->p->db->data[j]; 
-					k++;
-				}
-				inode = atoi(tmp1);
-				printf("%d %s\n",inode,tmp);
-				if(p->right==NULL)
-					break;
-				s+= 7;
-				p = p->right;
-			}
-		}else{
-			return;
-		}
-
-		return;
 	}
 
 	if(!strcmp(a_i2,"-l")){
-		while(s<13){
-			k=0;
-			for(int i=s;i<s+3;i++){
-				tmp1[k] = cur->p->db->data[i];
-				k++;
-			}
-			k=0;
-			for(int j=s+3;j<s+7;j++){
-				tmp[k] = cur->p->db->data[j]; 
-				k++;
-			}
-			inode = atoi(tmp1);
-			if(mfs->inode[inode]->file_type == 1){
-				sprintf(type,"%s","d");
-			}else if(mfs->inode[inode]->file_type == 0){
-				sprintf(type,"%s","-");
-			}
 
-			printf("%s %d %s %s\n",type,mfs->inode[inode]->file_size,mfs->inode[inode]->file_date,tmp);
-
-			s+= 7;
-		}
-
-		if(cur->left !=NULL){
-			while(1){
-				k=0;
-				for(int i=s;i<s+3;i++){
-					tmp1[k] = cur->p->db->data[i];
-					k++;
-				}
-				k=0;
-				for(int j=s+3;j<s+7;j++){
-					tmp[k] = cur->p->db->data[j]; 
-					k++;
-				}
-				inode = atoi(tmp1);
-
-				if(mfs->inode[inode]->file_type == 1){
-					sprintf(type,"%s","d");
-				}else if(mfs->inode[inode]->file_type == 0){
-					sprintf(type,"%s","-");
-				}
-
-				printf("%s %d %s %s\n",type,mfs->inode[inode]->file_size,mfs->inode[inode]->file_date,tmp);
-				if(p->right==NULL)
-					break;
-				s+= 7;
-				p = p->right;
-			}
-		}else{
-			return;
-		}
-
-		return;
 	}
 
 	if( (!strcmp(a_i2,"-li")) || (!strcmp(a_i2,"-il")) ){
@@ -2802,9 +2707,15 @@ void myshowfile(char a_i[20],char a_i2[20],char a_i3[20]){
 	/////////////////////////////////////////////////
 
 	if(mfs->inode[id]->sin == -1){
-		// 다이렉트 블럭
-		for(int i=0;i<mfs->inode[id]->file_size;i++)
-			printf("%c",mfs->inode[id]->db->data[i]);
+
+		int nn=loops;
+
+		if(loops == 0 && loopf == 1){
+			int abcd;
+			abcd = num22 % 129;
+			for(int i=0;i<abcd;i++)
+				printf("%c",mfs->inode[id]->db->data[i]);
+		}
 
 		return;
 	}
@@ -2813,16 +2724,12 @@ void myshowfile(char a_i[20],char a_i2[20],char a_i3[20]){
 		num = malloc(102 * sizeof(int));
 		num = get_sidbit_ADD(id);
 
-		//여기서 출력
-
 		int b=0;
 
 		temp[0] = mfs->inode[id]->dir;
 
-		for(int i=1;i<mfs->inode[id]->numS+1;i++)
+		for(int i=1;i<103;i++)
 			temp[i] = num[i-1];
-
-		//////////////////////////////////////////
 
 		struct btree *head = NULL;
 		struct btree *tail = NULL;
@@ -2844,15 +2751,49 @@ void myshowfile(char a_i[20],char a_i2[20],char a_i3[20]){
 			}
 
 			b++;
-
 		}
 
 		struct btree *print = head;
+		int nn=loops;
 
-		while(print != NULL){
-			for(int i=0;i<128;i++)
-				printf("%c",print->p->data[i]);
+		for(int i=0;i<loops;i++)
 			print = print->next;
+
+		if(loops == 0 && loopf == 1){
+			int abcd;
+			abcd = num22 % 129;
+			for(int i=0;i<abcd;i++)
+				printf("%c",print->p->data[i]);
+			return;
+		}
+
+		while(1){
+
+			if(loopf == nn){
+				for(int i=0;i<remain;i++){
+					printf("%c",print->p->data[i]);
+				}
+				break;
+			}
+			if(loops == nn){
+
+				if( rem == 0 ){
+					printf("%c",print->p->data[remm]);
+				}
+
+				for(int i=remains-1;i<128;i++)
+					printf("%c",print->p->data[i]);
+			}
+
+			if(loopf != nn && loops != nn){
+
+				for(int i=0;i<128;i++)
+					printf("%c",print->p->data[i]);
+
+			}
+
+			print = print->next;
+			nn++;
 		}
 
 		return;
