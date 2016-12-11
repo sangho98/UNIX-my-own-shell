@@ -2297,7 +2297,7 @@ void mycpto(char a_i[30],char a_i2[30]){
 	while(pd != NULL){
 
 		if(!strcmp(pd->name,a_i)){
-			if(p->p->file_type == 1){
+			if(pd->p->file_type == 1){
 				printf("폴더 입니다.\n");
 				return;
 			}
@@ -2697,4 +2697,8 @@ void mycp(char a_i[20],char name[5]){
 
 	num = NULL;
 	num2 = NULL;
+}
+
+void myshowfile(char a_i[20],char a_i2[20],char a_i3[20]){
+
 }
