@@ -2273,13 +2273,6 @@ void mycat(char a_i[30]){
 
 }
 
-void myshowfile(char a_i[30],char a_i2[30],char a_i3[30]){
-	int num1,num2;
-
-	num1 = atoi(a_i);
-	num2 = atoi(a_i2);
-}
-
 void mycpto(char a_i[30],char a_i2[30]){
 	int s=0,k,ck=999,n=0,l,m=0,id=-1,dd;
 	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
@@ -2700,5 +2693,222 @@ void mycp(char a_i[20],char name[5]){
 }
 
 void myshowfile(char a_i[20],char a_i2[20],char a_i3[20]){
+	int num11,num22;
+	int loops,loopf,start,rem,remm;
+	int remain = 0,remains = 0;
 
+	num11 = atoi(a_i);
+	num22 = atoi(a_i2);
+
+	rem = num11 % 128;
+
+	if(rem == 0){
+		remm = num11 - (( (num11 / 128) - 1) * 128);
+	}
+
+	loops = num11 / 128;
+
+	remains = num11 % 128;
+
+	loopf = num22 / 128;
+
+	remain = num22 % 128;
+
+	start = num11 / 128;
+
+	if(remain != 0)
+		loopf += 1;
+
+	if(remains == 0){
+		start -= 1;
+		loops -= 1;
+	}
+
+	int s=0,k,ck=999,n=0,l,m=0,id=-1,dd;
+	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
+	int *num,*num2,i=0,temp[1024];
+
+	for(int i=0;i<1024;i++)
+		temp[i] = 0;
+
+	struct dtree *pd = cur->left;
+
+	while(pd != NULL){
+
+		if(!strcmp(pd->name,a_i3)){
+			if(pd->p->file_type == 1){
+				printf("폴더 입니다.\n");
+				return;
+			}
+			id = pd->inode;
+
+			break;
+		}
+
+		pd = pd->right;
+	}
+
+	if(id == -1){
+		printf("파일명을 정확히 입력해 주세요.\n");
+		return;
+	}
+	/////////////////////////////////////////////////
+
+	if(mfs->inode[id]->sin == -1){
+		// 다이렉트 블럭
+		for(int i=0;i<mfs->inode[id]->file_size;i++)
+			printf("%c",mfs->inode[id]->db->data[i]);
+
+		return;
+	}
+
+	if(mfs->inode[id]->dou == -1){
+		num = malloc(102 * sizeof(int));
+		num = get_sidbit_ADD(id);
+
+		//여기서 출력
+
+		int b=0;
+
+		temp[0] = mfs->inode[id]->dir;
+
+		for(int i=1;i<mfs->inode[id]->numS+1;i++)
+			temp[i] = num[i-1];
+
+		//////////////////////////////////////////
+
+		struct btree *head = NULL;
+		struct btree *tail = NULL;
+
+		b = 0;
+
+		while(temp[b] != 0){
+
+			struct btree *new = malloc(sizeof(struct btree));
+
+			new->p = mfs->block[temp[b]];
+			new->next = NULL;
+
+			if(head == NULL && tail == NULL)
+				head = tail = new;
+			else{
+				tail->next = new;
+				tail = new;
+			}
+
+			b++;
+
+		}
+
+		struct btree *print = head;
+
+		while(print != NULL){
+			for(int i=0;i<128;i++)
+				printf("%c",print->p->data[i]);
+			print = print->next;
+		}
+
+		return;
+	}
+
+	int loopQ,loopP;
+
+	loopQ = mfs->inode[id]->num;
+	loopP = mfs->inode[id]->numP;
+
+	num = malloc(102 * sizeof(int));
+
+	num = get_sidbit_ADD(id);
+
+	num2 = malloc( ( ((loopQ - 1) * 102) + loopP +1 ) * sizeof(int));
+
+	num2 = get_dsidbit(id);
+
+	int b=0;
+
+	temp[0] = mfs->inode[id]->dir;
+
+	for(int i=1;i<103;i++)
+		temp[i] = num[i-1];
+
+	while(1){
+		if(num2[b] == 0)
+			break;
+
+		temp[b+103] = num2[b];
+
+		b++;
+	}
+
+	//////////////////////////////////////////
+
+	struct btree *head = NULL;
+	struct btree *tail = NULL;
+
+	b = 0;
+
+
+	while(temp[b] != 0){
+
+		struct btree *new = malloc(sizeof(struct btree));
+
+		new->p = mfs->block[temp[b]];
+		new->next = NULL;
+
+		if(head == NULL && tail == NULL)
+			head = tail = new;
+		else{
+			tail->next = new;
+			tail = new;
+		}
+
+		b++;
+	}
+
+	struct btree *print = head;
+	int nn=loops;
+
+	// 그만큼 가줬다
+	for(int i=0;i<loops;i++)
+		print = print->next;
+
+	if(loops == 0 && loopf == 1){
+		int abcd;
+		abcd = num22 % 129;
+		for(int i=0;i<abcd;i++)
+			printf("%c",print->p->data[i]);
+		return;
+	}
+
+	while(1){
+
+		if(loopf == nn){
+			for(int i=0;i<remain;i++){
+				printf("%c",print->p->data[i]);
+			}
+			break;
+		}
+		if(loops == nn){
+
+			if( rem == 0 ){
+				printf("%c",print->p->data[remm]);
+			}
+
+			for(int i=remains-1;i<128;i++)
+				printf("%c",print->p->data[i]);
+		}
+
+		if(loopf != nn && loops != nn){
+
+			for(int i=0;i<128;i++)
+				printf("%c",print->p->data[i]);
+
+		}
+
+		print = print->next;
+		nn++;
+	}
+
+	num = NULL;
+	num2 = NULL;
 }
