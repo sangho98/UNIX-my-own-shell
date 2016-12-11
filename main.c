@@ -320,7 +320,8 @@ void command(char i[30], char a_i[30],char a_i2[20],char a_i3[20]){
 	}
 
 	if(!strcmp(i,"mycat")){
-		mycat(a_i);
+		sprintf(name,"%c%c%c%c",a_i[0],a_i[1],a_i[2],a_i[3]);
+		mycat(name);
 	}
 
 	if( !(i[0] == 'm' && i[1] == 'y') ){
@@ -338,22 +339,34 @@ void command(char i[30], char a_i[30],char a_i2[20],char a_i3[20]){
 	}
 
 	if(!strcmp(i,"myshowfile")){
-		myshowfile(a_i,a_i2,a_i3);
+		if(a_i3[0] != '\0'){
+			sprintf(name,"%c%c%c%c",a_i3[0],a_i3[1],a_i3[2],a_i3[3]);
+			myshowfile(a_i,a_i2,name);
+		}else{
+			printf("파일명을 입력 해주세요.\n");
+		}
 	}
 
 	if(!strcmp(i,"mycpto")){
-		mycpto(a_i,a_i2);
+		sprintf(name,"%c%c%c%c",a_i[0],a_i[1],a_i[2],a_i[3]);
+		mycpto(name,a_i2);
 	}
 
 	if(!strcmp(i,"mycp")){
+		char name2[5];
 		sprintf(name,"%c%c%c%c",a_i2[0],a_i2[1],a_i2[2],a_i2[3]);
-		mycp(a_i,name);
-		//	system("rm loperz");
+		sprintf(name2,"%c%c%c%c",a_i[0],a_i[1],a_i[2],a_i[3]);
+		mycp(name2,name);
 	}
 
 	if(!strcmp(i,"mymv")){
 		sprintf(name,"%c%c%c%c",a_i2[0],a_i2[1],a_i2[2],a_i2[3]);
 		mymv(a_i,name);
+	}
+
+	if(!strcmp(i,"mymkfs")){
+		printf("myfs가 이미 존재합니다!\n");
+		return;
 	}
 
 }
