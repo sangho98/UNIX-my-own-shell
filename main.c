@@ -78,7 +78,7 @@ int mycd_func(char []);
 void myls(char []);
 //void myls_func(char [],char []);
 void myrmdir(char []);
-//void myrmdir_func(char []);
+void myrmdir_func(char []);
 void mytree(struct dtree*,int);
 void mytree_func(struct dtree*,int);
 void myshowinode(char []);
@@ -88,10 +88,10 @@ void mycpfrom(char[],char[]);
 void mytouch(char []);
 void mycat(char []);
 void mycpto(char [],char []);
-void myshowfile(char [],char [],char []);
 void mycp(char [],char []);
 void mymv(char [],char []);
 int mymv_func(char []);
+void myshowfile(char [],char [],char []);
 //void myrm(char []);
 
 struct my_file_system *mfs;
@@ -306,7 +306,7 @@ void command(char i[30], char a_i[30],char a_i2[20],char a_i3[20]){
 	}
 
 	if(!strcmp(i,"myrmdir")){
-		myrmdir(a_i);
+		myrmdir_func(a_i);
 	}
 
 	if(!strcmp(i,"myshowinode")){
@@ -326,7 +326,7 @@ void command(char i[30], char a_i[30],char a_i2[20],char a_i3[20]){
 	}
 
 	if( !(i[0] == 'm' && i[1] == 'y') ){
-		sprintf(i,"%s %s %s",i,a_i,a_i2);
+		sprintf(i,"%s %s %s %s",i,a_i,a_i2,a_i3);
 		system(i);
 	}
 
@@ -350,7 +350,7 @@ void command(char i[30], char a_i[30],char a_i2[20],char a_i3[20]){
 	if(!strcmp(i,"mycp")){
 		sprintf(name,"%c%c%c%c",a_i2[0],a_i2[1],a_i2[2],a_i2[3]);
 		mycp(a_i,name);
-		system("rm loperz");
+		//	system("rm loperz");
 	}
 
 	if(!strcmp(i,"mymv")){
@@ -1242,7 +1242,7 @@ void in_dir(char name[5],int inode){
 	sprintf(cur->p->db->data,"%-3d%-4s",inode,name);
 	strcat(tmp,cur->p->db->data);
 
-	sprintf(cur->p->db->data,"%-7s\0",tmp);
+	sprintf(cur->p->db->data,"%-7s",tmp);
 
 }
 
@@ -1499,44 +1499,13 @@ void myls(char a_i2[30]){
 		printf("%s\n",ioi->name);
 		ioi = ioi->right;
 	}
-	/*
-	while(s<13){
-		k=0;
-		for(int i=s;i<s+3;i++){
-		}
-		for(int j=s+3;j<s+7;j++){
-			tmp[k] = cur->p->db->data[j]; 
-			k++;
-		}
-		printf("%s ",tmp);
-		s+= 7;
-	}
-
-	if(cur->left !=NULL){
-		while(1){
-			k=0;
-			for(int i=s;i<s+3;i++){
-			}
-			for(int j=s+3;j<s+7;j++){
-				tmp[k] = cur->p->db->data[j]; 
-				k++;
-			}
-			printf("%s ",tmp);
-			if(p->right==NULL)
-				break;
-			s+= 7;
-			p = p->right;
-		}
-	}else{
-		return;
-	}
-	*/
 }
 
 int mycd(char *a_i){
 	int s=0,k,ck=999,n=0;
 	char tmp[5],tmp2[40];
 	struct dtree *p = cur->left;
+	struct dtree *test = cur->left;
 
 	if(a_i == NULL){
 		sprintf(path,"%s","/");
@@ -1551,74 +1520,38 @@ int mycd(char *a_i){
 	}
 
 	if(a_i !=NULL){
+
 		sprintf(backup,"%s",path);
+
 
 		while(1){
 
-			k=0;
-			for(int i=0;i<5;i++)
-				tmp[i] = '\0';
+			if(!strcmp(test->name,a_i)){
 
-			for(int j=s+3;j<s+7;j++){
-				if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-					tmp[k] = '\0';
-					break;
+				if(test->p->file_type == 0){
+					printf("잘못된 경로 입니다.\n");
+					strcpy(path,backup2);
+					return 1;
 				}
-				tmp[k] = cur->p->db->data[j]; 
-				k++;
-			}
 
-			if(!strcmp(a_i,tmp)){
-				ck = n;
-			}
+				cur = test;
 
-			if(cur->p->db->data[s+7] == '\0')	
+				sprintf(tmp2,"%s",path);
+
+				if(path[0] == '/' && path[1] == '\0'){
+					sprintf(path,"/%s",a_i);
+				}else{
+					sprintf(path,"%s/%s",tmp2,a_i);
+				}
 				break;
-			s+=7;
-			n++;
+			}
+
+			if(test->right == NULL){
+				printf("잘못된 경로 입니다.\n");
+				break;
+			}
+			test = test->right;
 		}
-
-		back = p;
-
-		if(ck == 999){
-			printf("잘못된 경로 입니다.\n");
-			strcpy(path,backup2);
-			return 1;
-		}
-
-		if(ck == 0)
-			return 0;
-
-		// 미 구현
-
-		if(ck == 1){
-			printf("요기 실행\n");
-			cur = back;
-			sprintf(path,"%s",backup);
-			return 3;
-		}
-
-
-		for(int i=0;i<ck-2;i++){
-			p = p->right;
-		}
-
-		if(p->p->file_type == 0){
-			printf("잘못된 경로 입니다.\n");
-			strcpy(path,backup2);
-			return 1;
-		}
-
-		cur = p;
-
-		sprintf(tmp2,"%s",path);
-
-		if(path[0] == '/' && path[1] == '\0'){
-			sprintf(path,"/%s",a_i);
-		}else{
-			sprintf(path,"%s/%s",tmp2,a_i);
-		}
-
 
 	}
 
@@ -1644,8 +1577,8 @@ int mycd_func(char a_i[30]){
 
 	while(line != NULL){
 		// 여기에 추가 하면 될듯!
-		s =	mycd(line);
 		printf("%s\n",line);
+		s =	mycd(line);
 
 		if(s == 1){
 			cur = back2;
@@ -1803,50 +1736,50 @@ void myrmdir(char a_i[30]){
 	}
 
 }
-/*
-   void myrmdir_func(char a_i[30]){
-   char *line,*line2;
-   char tmp[30],tmp2[100][5];
-   int s=0,i=0,a=0;
+void myrmdir_func(char a_i[30]){
+	char *line,*line2;
+	char tmp[30],tmp2[100][5];
+	int s=0,i=0,a=0;
 
-   line = strtok(a_i,"/");
-
-   strcpy(tmp,a_i);
-
-   while(line != NULL){
+	strcpy(tmp,a_i);
+	line = strtok(a_i,"/");
 
 
-   sprintf(tmp2[s],"%s",line);
-   line = strtok(NULL,"/");
-   s++;
-   }
-
-   strcpy(backup2,path);
-
-   back2 = cur;
-
-   if(a_i[0] == '/'){
-   mycd(a_i);
-   }
-
-   while(i<s){
-
-   if(i==s-1){
-   myrmdir(tmp2[i]);
-   cur = back2;
-   strcpy(path,backup2);
-   return;
-   }
-
-   mycd(tmp2[i]);
-
-   i++;
-
-   }
+	while(line != NULL){
 
 
-   }
- */
+		sprintf(tmp2[s],"%s",line);
+		line = strtok(NULL,"/");
+		s++;
+	}
+
+	strcpy(backup2,path);
+
+	back2 = cur;
+
+	printf("%s %s %s %s\n",tmp2[0],tmp2[1],tmp2[2],tmp2[3]);
+
+	if(a_i[0] == '/'){
+		mycd(a_i);
+	}
+
+	while(i<s){
+
+		if(i==s-1){
+			myrmdir(tmp2[i]);
+			cur = back2;
+			strcpy(path,backup2);
+			return;
+		}
+
+		mycd(tmp2[i]);
+
+		i++;
+
+	}
+
+
+}
 
 void mytree(struct dtree *tr,int d){
 
@@ -2079,43 +2012,18 @@ void mytouch(char name[5]){
 	char tmp[5],tmp1[4];
 	struct dtree *p = cur->left;
 
-	while(s<13){
-		k=0;
-		for(int i=s;i<s+3;i++){
-			tmp1[k] = cur->p->db->data[i];
-			k++;
-		}
-		k=0;
-		for(int j=s+3;j<s+7;j++){
-			tmp[k] = cur->p->db->data[j]; 
-			k++;
-		}
-		s+= 7;
-	}
 
-	if(cur->left !=NULL){
-		while(1){
-			k=0;
-			for(int i=s;i<s+3;i++){
-				tmp1[k] = cur->p->db->data[i];
-				k++;
-			}
-			k=0;
-			for(int j=s+3;j<s+7;j++){
-				tmp[k] = cur->p->db->data[j]; 
-				k++;
-			}
-			if(!strcmp(name,tmp)){
-				ckin = atoi(tmp1);
-				break;
-			}
-			if(p->right==NULL)
-				break;
-			s+= 7;
-			p = p->right;
-		}
-	}
+	while(p != NULL){
 
+		if(!strcmp(p->name,name)){
+
+			ckin = p->inode;
+			break;
+		}
+
+
+		p = p->right;
+	}
 	if(ckin == -1){
 
 		inode = i_bit_check();
@@ -2209,66 +2117,35 @@ void mytouch(char name[5]){
 }
 
 void mycat(char a_i[30]){
-	int s=0,k,ck=999,n=0,l,m=0,id,dd;
+	int s=0,k,ck=999,n=0,l,m=0,id=-1,dd;
 	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
 	int *num,*num2,i=0,temp[1024];
 
-	while(1){
 
-		k=0;
-		for(int i=0;i<5;i++)
-			tmp[i] = '\0';
+	for(int i=0;i<1024;i++)
+		temp[i] = 0;
 
-		for(int j=s+3;j<s+7;j++){
-			if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-				tmp[k] = '\0';
-				break;
+	struct dtree *pd = cur->left;
+
+	while(pd != NULL){
+
+		if(!strcmp(pd->name,a_i)){
+			if(pd->p->file_type == 1){
+				printf("폴더 입니다.\n");
+				return;
 			}
-			tmp[k] = cur->p->db->data[j]; 
-			k++;
-		}
+			id = pd->inode;
 
-		if(!strcmp(a_i,tmp)){
-			ck = n;
-		}
-
-		if(cur->p->db->data[s+7] == '\0'){	
-			l = n;
 			break;
 		}
-		s+=7;
-		n++;
-	}
-	/////////////////////////////////////////////////
 
-	if(ck == 999){
-		printf("잘못된 경로 입니다.\n");
+		pd = pd->right;
+	}
+
+	if(id == -1){
+		printf("파일명을 정확히 입력해 주세요.\n");
 		return;
 	}
-
-	if(ck == 2){
-		if(l == 2){
-
-			for(int i=ck*7;i<(ck*7)+3;i++){
-				tmp5[i-(ck*7)]= cur->p->db->data[i];
-			}
-			id = atoi(tmp5);
-
-		}
-
-		for(int i=ck*7;i<(ck*7)+3;i++){
-			tmp5[i-(ck*7)]= cur->p->db->data[i];
-		}
-		id = atoi(tmp5);
-
-	}
-
-
-	for(int i=ck*7;i<(ck*7)+3;i++){
-		tmp5[i-(ck*7)]= cur->p->db->data[i];
-	}
-	id = atoi(tmp5);
-
 	/////////////////////////////////////////////////
 
 	if(mfs->inode[id]->sin == -1){
@@ -2338,8 +2215,6 @@ void mycat(char a_i[30]){
 	num = get_sidbit_ADD(id);
 
 	num2 = malloc( ( ((loopQ - 1) * 102) + loopP +1 ) * sizeof(int));
-	for(int i=0;i< (((loopQ - 1) * 102) + loopP) +1;i++)
-		num2[i] = 0;
 
 	num2 = get_dsidbit(id);
 
@@ -2406,7 +2281,7 @@ void myshowfile(char a_i[30],char a_i2[30],char a_i3[30]){
 }
 
 void mycpto(char a_i[30],char a_i2[30]){
-	int s=0,k,ck=999,n=0,l,m=0,id,dd;
+	int s=0,k,ck=999,n=0,l,m=0,id=-1,dd;
 	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4];
 	int *num,*num2,i=0,temp[1024];
 
@@ -2414,62 +2289,32 @@ void mycpto(char a_i[30],char a_i2[30]){
 
 	fp = fopen(a_i2,"wt");
 
-	while(1){
+	for(int i=0;i<1024;i++)
+		temp[i] = 0;
 
-		k=0;
-		for(int i=0;i<5;i++)
-			tmp[i] = '\0';
+	struct dtree *pd = cur->left;
 
-		for(int j=s+3;j<s+7;j++){
-			if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-				tmp[k] = '\0';
-				break;
+	while(pd != NULL){
+
+		if(!strcmp(pd->name,a_i)){
+			if(p->p->file_type == 1){
+				printf("폴더 입니다.\n");
+				return;
 			}
-			tmp[k] = cur->p->db->data[j]; 
-			k++;
-		}
+			id = pd->inode;
 
-		if(!strcmp(a_i,tmp)){
-			ck = n;
-		}
-
-		if(cur->p->db->data[s+7] == '\0'){	
-			l = n;
 			break;
 		}
-		s+=7;
-		n++;
-	}
-	/////////////////////////////////////////////////
 
-	if(ck == 999){
-		printf("잘못된 경로 입니다.\n");
+		pd = pd->right;
+	}
+
+	if(id == -1){
+		printf("파일명을 정확히 입력해 주세요.\n");
 		return;
 	}
 
-	if(ck == 2){
-		if(l == 2){
-
-			for(int i=ck*7;i<(ck*7)+3;i++){
-				tmp5[i-(ck*7)]= cur->p->db->data[i];
-			}
-			id = atoi(tmp5);
-
-		}
-
-		for(int i=ck*7;i<(ck*7)+3;i++){
-			tmp5[i-(ck*7)]= cur->p->db->data[i];
-		}
-		id = atoi(tmp5);
-
-	}
-
-
-	for(int i=ck*7;i<(ck*7)+3;i++){
-		tmp5[i-(ck*7)]= cur->p->db->data[i];
-	}
-	id = atoi(tmp5);
-
+	// id 가져온다
 	/////////////////////////////////////////////////
 
 	if(mfs->inode[id]->sin == -1){
@@ -2618,7 +2463,6 @@ void mymv(char a_i[20], char a_i2[20]){
 	for(int i=0;i<4;i++)
 		tmp5[i] = '\0';
 
-	printf(" pp = %d\n",pp);
 
 	if(pp == 999){
 
@@ -2629,406 +2473,181 @@ void mymv(char a_i[20], char a_i2[20]){
 
 		ppp = mymv_func(a_i2);
 
-		printf(" ppp = %d\n",ppp);
 		if(ppp == 999){
 			//존재 x 파일명 바꾸기
+			struct dtree *pppp = cur->left;
+			struct dtree *pd = cur->left;
+			char front[128],fback[128];
+			char name[5];
+			int i=0,o=0;
 
-			while(1){
+			sprintf(name,"%c%c%c%c",a_i2[0],a_i2[1],a_i2[2],a_i2[3]);
 
-				k=0;
-				for(int i=0;i<5;i++)
-					tmp[i] = '\0';
+			name[5] = '\0';
 
-				for(int j=s+3;j<s+7;j++){
-					if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-						tmp[k] = '\0';
-						break;
+			while(pppp != NULL){
+				pppp = pppp->right;
+				o++;
+			}
+
+			pppp = cur->left;
+
+			while( pd != NULL){
+
+				if(!strcmp(pd->name,a_i)){
+
+					strcpy(pd->name,name);
+
+					for(int j=0;j<(i+2)*7+3;j++){
+						front[j] = cur->p->db->data[j];
 					}
-					tmp[k] = cur->p->db->data[j]; 
-					k++;
-				}
 
-				if(!strcmp(a_i,tmp)){
-					ck = n;
-				}
+					front[((i+2)*7)+3] = '\0';
 
-				if(cur->p->db->data[s+7] == '\0'){	
-					l = n;
+					int j = (i+3)*7;
+					int k = 0;
+
+					for(int a=j;a<(o+2)*7;a++){
+						fback[a-j] = cur->p->db->data[a];
+					}
+
+					fback[(o+2) * 7] = '\0';
+
+					// front, fback 이용해서 아이노드 번호 이름 삭제
+
+					sprintf(cur->p->db->data,"%s%-4s%s",front,name,fback);
+
 					break;
 				}
-				s+=7;
-				n++;
-			}
-			/////////////////////////////////////////////////
 
-			if(ck == 999){
-				printf("잘못된 경로 입니다.\n");
-				return;
-			}
-			struct dtree *p = cur->left;
+				pd = pd->right;
 
-			for(int i=0;i<ck-2;i++)
-				p = p->right;
-
-			if(ck == 2){
-				if(l == 2){
-					for(int i=0;i<ck*7;i++){
-						tmp2[i] = cur->p->db->data[i];
-					}
-					for(int i=ck*7;i<(ck*7)+3;i++){
-						tmp5[i-(ck*7)]= cur->p->db->data[i];
-					}
-					for(int i=(ck*7)+7;i<(l*7)+7;i++){
-						tmp3[i] = cur->p->db->data[i];
-					}
-					id = atoi(tmp5);
-					sprintf(tmp4,"%s%-3d%-4s%s",tmp2,id,a_i2,tmp3);
-					sprintf(cur->p->db->data,"%s",tmp4);
-					sprintf(p->right->name,"%s",a_i2);
-					return;
-				}
-
-				for(int i=0;i<ck*7;i++){
-					tmp2[i] = cur->p->db->data[i];
-				}
-				for(int i=ck*7;i<(ck*7)+3;i++){
-					tmp5[i-(ck*7)]= cur->p->db->data[i];
-				}
-				for(int i=(ck*7)+7;i<(l*7)+7;i++){
-					tmp3[m] = cur->p->db->data[i];
-					m++;
-				}
-				id = atoi(tmp5);
-				sprintf(tmp4,"%s%-3d%-4s%s",tmp2,id,a_i2,tmp3);
-				sprintf(cur->p->db->data,"%s",tmp4);
-				sprintf(p->right->name,"%s",a_i2);
-				return;
+				i++;
 			}
 
-			for(int i=0;i<ck*7;i++){
-				tmp2[i] = cur->p->db->data[i];
-			}
-			for(int i=ck*7;i<(ck*7)+3;i++){
-				tmp5[i-(ck*7)]= cur->p->db->data[i];
-			}
-			for(int i=(ck*7)+7;i<(l*7)+7;i++){
-				tmp3[m] = cur->p->db->data[i];
-				m++;
-			}
-			id = atoi(tmp5);
-			sprintf(tmp4,"%s%-3d%4s%s",tmp2,id,a_i2,tmp3);
-			sprintf(cur->p->db->data,"%s",tmp4);
-			sprintf(p->right->name,"%s",a_i2);
-			return;
+
 
 		}else{
-			int id2;
-			char tmp0[30],tmp11[30],tmp22[30],tmp33[30],tmp44[30];
+			struct dtree *pd = cur->left;
+			struct dtree *pdd = cur->left;
+			struct dtree *pppp = cur->left;
+			struct dtree *temmp= cur->left;
+			struct dtree *usep = malloc(sizeof(struct dtree));;
+			struct dtree *use = malloc(sizeof(struct dtree));;
+			int i = 0,o=0,ii=0;
+			char front[128],fback[128];
+			char name[5];
+			int inode;
 			// 존재 o 파일 옮기기
 			// 파일이면 리턴, 폴더면 폴더 들어감
-			while(1){
-				while(1){
-
-					k=0;
-					for(int i=0;i<5;i++)
-						tmp[i] = '\0';
-
-					for(int j=s+3;j<s+7;j++){
-						if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-							tmp[k] = '\0';
-							break;
-						}
-						tmp[k] = cur->p->db->data[j]; 
-						k++;
-					}
-
-					if(!strcmp(a_i,tmp)){
-						ck = n;
-					}
-
-					if(cur->p->db->data[s+7] == '\0'){	
-						l = n;
-						break;
-					}
-					s+=7;
-					n++;
-				}
-				/////////////////////////////////////////////////
-
-				if(ck == 999){
-					printf("잘못된 경로 입니다.\n");
-					return;
-				}
-
-				if(ck == 2){
-					if(l == 2){
-						for(int i=0;i<ck*7;i++){
-							tmp11[i] = cur->p->db->data[i];
-						}
-						for(int i=ck*7;i<(ck*7)+3;i++){
-							tmp22[i-(ck*7)]= cur->p->db->data[i];
-						}
-						for(int i=(ck*7)+7;i<(l*7)+7;i++){
-							tmp33[i] = cur->p->db->data[i];
-						}
-						id2 = atoi(tmp22);
-						sprintf(tmp44,"%s%s",tmp11,tmp33);
-						break;
-					}
-
-					for(int i=0;i<ck*7;i++){
-						tmp11[i] = cur->p->db->data[i];
-					}
-					for(int i=ck*7;i<(ck*7)+3;i++){
-						tmp22[i-(ck*7)]= cur->p->db->data[i];
-					}
-					for(int i=(ck*7)+7;i<(l*7)+7;i++){
-						tmp33[m] = cur->p->db->data[i];
-						m++;
-					}
-					id2 = atoi(tmp22);
-					sprintf(tmp44,"%s%s",tmp11,tmp33);
-					break;
-				}
-
-				for(int i=0;i<ck*7;i++){
-					tmp11[i] = cur->p->db->data[i];
-				}
-				for(int i=ck*7;i<(ck*7)+3;i++){
-					tmp22[i-(ck*7)]= cur->p->db->data[i];
-				}
-				for(int i=(ck*7)+7;i<(l*7)+7;i++){
-					tmp33[m] = cur->p->db->data[i];
-					m++;
-				}
-				id = atoi(tmp22);
-				sprintf(tmp44,"%s%s",tmp11,tmp33);
-				break;
-			}
 			// 폴더 들어가고 아이노드 번호 쓰고 현재 폴더에 아이노드 번호 및 이름 삭제
-			printf("여기 안들어오는거같은데?\n");
-			n = 0;
-			while(1){
-
-				k=0;
-				for(int i=0;i<5;i++)
-					tmp[i] = '\0';
-
-				for(int j=s+3;j<s+7;j++){
-					if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-						tmp[k] = '\0';
-						break;
-					}
-					tmp[k] = cur->p->db->data[j]; 
-					k++;
-				}
-
-				if(!strcmp(a_i2,tmp)){
-					ck = n;
-				}
-
-				if(cur->p->db->data[s+7] == '\0'){	
-					l = n;
-					break;
-				}
-				s+=7;
-				n++;
-			}
-			/////////////////////////////////////////////////
-
-			if(ck == 999){
-				printf("잘못된 경로 입니다.\n");
-				return;
-			}
-
-			while(1){
-
-				if(ck == 2){
-					if(l == 2){
-						for(int i=0;i<ck*7;i++){
-							tmp2[i] = cur->p->db->data[i];
-						}
-						for(int i=ck*7;i<(ck*7)+3;i++){
-							tmp5[i-((ck*7))]= cur->p->db->data[i];
-						}
-						for(int i=(ck*7)+7;i<(l*7);i++){
-							tmp3[i] = cur->p->db->data[i];
-						}
-						id = atoi(tmp5);
-
-						int ppck;
-
-						sprintf(backup4,"%s",path);
-
-						back4 = cur;
-
-						sprintf(a_i2,"%s",a_i2);
-						ppck = mycd_func(a_i2);
-
-						if(ppck == 1){
-							return;
-						}
-
-						if(cur->left == NULL){
-							cur->left = bback;
-							in_dir(a_i,id2);
-						}else{
-							struct dtree *temp = cur->left;
-
-							while(temp->right != NULL)
-								temp = temp->right;
-
-							temp->right = bback;
-
-							in_dir(a_i,id2);
-						}
-
-
-						bback = cur->left;
-						bback->right = NULL;
-
-						cur->left = NULL;
-
-						cur = back4;
-
-						sprintf(path,"%s",backup4);
-						sprintf(cur->p->db->data,"%s",tmp44);
-						break;
-					}
-
-					for(int i=0;i<ck*7;i++){
-						tmp2[i] = cur->p->db->data[i];
-					}
-					for(int i=ck*7;i<(ck*7)+3;i++){
-						tmp5[i-(ck*7)]= cur->p->db->data[i];
-					}
-					for(int i=ck*7+3;i<(ck*7)+7;i++){
-						tmp6[i-((ck*7)+3)]= cur->p->db->data[i];
-					}
-					for(int i=(ck*7)+7;i<(l*7)+7;i++){
-						tmp3[m] = cur->p->db->data[i];
-						m++;
-					}
-					id = atoi(tmp5);
-
-					int ppck;
-
-					sprintf(backup4,"%s",path);
-
-					back4 = cur;
-
-					sprintf(a_i2,"%s",a_i2);
-					ppck = mycd_func(a_i2);
-
-					if(ppck == 1){
-						return;
-					}
-
-
-					if(cur->left == NULL){
-						cur->left = bback;
-						in_dir(a_i,id2);
-					}else{
-						struct dtree *temp = cur->left;
-
-						while(temp->right != NULL)
-							temp = temp->right;
-
-						temp->right = bback;
-
-						in_dir(a_i,id2);
-					}
-
-					struct dtree *t;
-
-					t = cur->left;
-
-					bback = cur->left;
-					bback->right = NULL;
-
-					cur->left = cur->left->right;
-					t->right = NULL;
-					free(t);
-					t = NULL;
-
-					cur = back4;
-
-					sprintf(path,"%s",backup4);
-					sprintf(cur->p->db->data,"%s",tmp44);
-
-					break;
-				}
-
-				for(int i=0;i<ck-3;i++){
-					p = p->right;
-				}
-
-				for(int i=0;i<ck*7;i++){
-					tmp2[i] = cur->p->db->data[i];
-				}
-				for(int i=ck*7;i<(ck*7)+3;i++){
-					tmp5[i-(ck*7)]= cur->p->db->data[i];
-				}
-				for(int i=ck*7+3;i<(ck*7)+7;i++){
-					tmp6[i-((ck*7)+3)]= cur->p->db->data[i];
-				}
-				for(int i=(ck*7)+7;i<(l*7)+7;i++){
-					tmp3[m] = cur->p->db->data[i];
-					m++;
-				}
-				id = atoi(tmp5);
-
-				int ppck;
-
-				sprintf(backup4,"%s",path);
-
-				back4 = cur;
-				sprintf(a_i2,"%s",a_i2);
-
-				ppck = mycd_func(a_i2);
-
-				if(ppck == 1){
-					return;
-				}
-
-				if(cur->left == NULL){
-					cur->left = bback;
-					in_dir(a_i,id2);
-				}else{
-					struct dtree *temp = cur->left;
-
-					while(temp->right != NULL)
-						temp = temp->right;
-
-					temp->right = bback;
-
-					in_dir(a_i,id2);
-				}
-
-
-				struct dtree *bbback;
-
-				bback = p->right;
-				bback->right = NULL;
-
-				bbback = p->right;
-				p->right = p->right->right;
-
-				bbback->right = NULL;
-				free(bbback);
-
-				cur = back4;
-
-				sprintf(path,"%s",backup4);
-				sprintf(cur->p->db->data,"%s",tmp44);
-
-				break;
-			}
-
 			// 지워주기 완료
 			// 이제 파일 옮겨야 한다 -> cd로 들어간 후 맨마지막에 추가 in_dir 쓰면 될듯!
 			// id = 아이노드 번호 tmp6 = 아이노드 이름
 			// 연결 끊어준 후 폴더에 들어가서 연결 -> bback;
+			while(pppp != NULL){
+				pppp = pppp->right;
+				o++;
+			}
+			pppp = cur->left;
+
+			while(1){
+
+				if(!strcmp(pdd->name,a_i)){
+
+					// 앞 뒤 가져오기
+					for(int j=0;j<(i+2)*7;j++){
+						front[j] = cur->p->db->data[j];
+					}
+					front[((i+2)*7)] = '\0';
+
+					int j = (i+3)*7;
+					int k = 0;
+
+					for(int a=j;a<(o+2)*7;a++){
+						fback[a-j] = cur->p->db->data[a];
+					}
+
+					// front, fback 이용해서 아이노드 번호 이름 삭제
+
+					sprintf(cur->p->db->data,"%s%s",front,fback);
+
+					// 여기서 부터 끊어주자 먼저 바로 전 노드 검색
+
+
+					for(int j=0;j<i-1;j++){
+						temmp = temmp->right;
+					}
+
+					inode = pdd->inode;
+					strcpy(name,pdd->name);
+
+
+					// 트리구조 끊어준다.
+
+					usep = pdd;
+					ii = i;
+					break;
+
+				}
+				pdd = pdd->right;
+				i++;
+
+			}
+
+			while(1){
+
+				if(!strcmp(pd->name,a_i2)){
+					struct dtree *temp = pd->left;
+
+					if(pd->p->file_type == 0){
+						printf("파일 입니다.\n");
+						return;
+					}
+					while(1){
+
+						if(ii==0){
+							if(o==1){
+								cur->left = NULL;
+								break;
+							}
+							cur->left = cur->left->right;
+							break;
+						}else{
+							printf("inode = %d,name = %s\n",temmp->inode,temmp->name);
+							temmp->right = temmp->right->right;
+							break;
+						}
+					}
+
+					if(temp == NULL){
+
+						usep->right = NULL;
+						usep->left = NULL;
+
+						pd->left = usep;
+
+					}else{
+						while(temp->right != NULL)
+							temp = temp->right;
+
+						usep->right = NULL;
+						usep->left= NULL;
+
+						temp->right = usep;
+
+					}
+
+					// 데이터에 아이노드 이름 추가
+					char all[128];
+
+					strcpy(all,pd->p->db->data);
+					sprintf(pd->p->db->data,"%s%-3d%-4s",all,inode,name);
+					return;
+				}
+				pd = pd->right;
+
+			}
 
 		}
 
@@ -3042,34 +2661,20 @@ int mymv_func(char a_i[20]){
 	char tmp[5],tmp2[100],tmp3[100],tmp4[200],tmp5[4],tmp6[20];
 	int pp=0,ppp=0;
 
-	while(1){
+	struct dtree *pd = cur->left;
 
-		k=0;
-		for(int i=0;i<5;i++)
-			tmp[i] = '\0';
+	while(pd != NULL){
 
-		for(int j=s+3;j<s+7;j++){
-			if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-				tmp[k] = '\0';
-				break;
-			}
-			tmp[k] = cur->p->db->data[j]; 
-			k++;
-		}
+		if(!strcmp(pd->name,a_i)){
+			return 1;
 
-		if(!strcmp(a_i,tmp)){
-			ck = n;
-		}
-
-		if(cur->p->db->data[s+7] == '\0'){	
-			l = n;
 			break;
 		}
-		s+=7;
-		n++;
+
+		pd = pd->right;
 	}
 
-	return ck;
+	return 999;
 }
 
 void mycp(char a_i[20],char name[5]){
@@ -3082,191 +2687,8 @@ void mycp(char a_i[20],char name[5]){
 
 	fp = fopen("loperz","wt");
 
-	while(1){
+	mycpto(a_i,"loperz");
 
-		k=0;
-		for(int i=0;i<5;i++)
-			tmp[i] = '\0';
-
-		for(int j=s+3;j<s+7;j++){
-			if(!((cur->p->db->data[j] >='a' && cur->p->db->data[j] <='z') || (cur->p->db->data[j] >= 'A' && cur->p->db->data[j] <= 'Z') || (cur->p->db->data[j] >= '1' && cur->p->db->data[j] <= '9') || (cur->p->db->data[j] == '.'))){
-				tmp[k] = '\0';
-				break;
-			}
-			tmp[k] = cur->p->db->data[j]; 
-			k++;
-		}
-
-		if(!strcmp(a_i,tmp)){
-			ck = n;
-		}
-
-		if(cur->p->db->data[s+7] == '\0'){	
-			l = n;
-			break;
-		}
-		s+=7;
-		n++;
-	}
-	/////////////////////////////////////////////////
-
-	if(ck == 999){
-		printf("잘못된 경로 입니다.\n");
-		return;
-	}
-
-	if(ck == 2){
-		if(l == 2){
-
-			for(int i=ck*7;i<(ck*7)+3;i++){
-				tmp5[i-(ck*7)]= cur->p->db->data[i];
-			}
-			id = atoi(tmp5);
-
-		}
-
-		for(int i=ck*7;i<(ck*7)+3;i++){
-			tmp5[i-(ck*7)]= cur->p->db->data[i];
-		}
-		id = atoi(tmp5);
-
-	}
-
-
-	for(int i=ck*7;i<(ck*7)+3;i++){
-		tmp5[i-(ck*7)]= cur->p->db->data[i];
-	}
-	id = atoi(tmp5);
-
-	/////////////////////////////////////////////////
-
-	if(mfs->inode[id]->sin == -1){
-		// 다이렉트 블럭
-		for(int i=0;i<mfs->inode[id]->file_size;i++)
-			printf("%c",mfs->inode[id]->db->data[i]);
-
-		return;
-	}
-
-	if(mfs->inode[id]->dou == -1){
-		num = malloc(102 * sizeof(int));
-		num = get_sidbit_ADD(id);
-
-		//여기서 출력
-
-		int b=0;
-
-		temp[0] = mfs->inode[id]->dir;
-
-		for(int i=1;i<mfs->inode[id]->numS+1;i++)
-			temp[i] = num[i-1];
-
-		//////////////////////////////////////////
-
-		struct btree *head = NULL;
-		struct btree *tail = NULL;
-
-		b = 0;
-
-		while(temp[b] != 0){
-
-			struct btree *new = malloc(sizeof(struct btree));
-
-			new->p = mfs->block[temp[b]];
-			new->next = NULL;
-
-			if(head == NULL && tail == NULL)
-				head = tail = new;
-			else{
-				tail->next = new;
-				tail = new;
-			}
-
-			b++;
-
-		}
-
-		struct btree *print = head;
-
-		while(print != NULL){
-			for(int i=0;i<128;i++)
-				printf("%c",print->p->data[i]);
-			print = print->next;
-		}
-
-		return;
-	}
-
-	int loopQ,loopP;
-
-	loopQ = mfs->inode[id]->num;
-	loopP = mfs->inode[id]->numP;
-
-	num = malloc(102 * sizeof(int));
-
-	num = get_sidbit_ADD(id);
-
-	num2 = malloc( ( ((loopQ - 1) * 102) + loopP ) * sizeof(int));
-
-	num2 = get_dsidbit(id);
-
-	int b=0;
-
-	temp[0] = mfs->inode[id]->dir;
-
-	for(int i=1;i<103;i++)
-		temp[i] = num[i-1];
-
-	while(1){
-		if(num2[b] == 0)
-			break;
-
-		temp[b+103] = num2[b];
-
-		b++;
-	}
-
-	//////////////////////////////////////////
-
-	struct btree *head = NULL;
-	struct btree *tail = NULL;
-
-	b = 0;
-
-	while(temp[b] != 0){
-
-		struct btree *new = malloc(sizeof(struct btree));
-
-		new->p = mfs->block[temp[b]];
-		new->next = NULL;
-
-		if(head == NULL && tail == NULL)
-			head = tail = new;
-		else{
-			tail->next = new;
-			tail = new;
-		}
-
-		b++;
-	}
-
-	struct btree *print = head;
-
-	int tmmp,v=0;
-
-	while(print != NULL){
-		v = 0;
-		for(int v=0;v<128;v++){
-			if(print->p->data[v] == '\0'){
-				print = print->next;
-				break;
-			}
-			tmmp = print->p->data[v];
-
-			fputc(tmmp,fp);
-		}
-		print = print->next;
-	}
 	//파일 저장 완료
 	// 다시 mycpfrom 하기
 
